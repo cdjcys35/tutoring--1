@@ -1,0 +1,562 @@
+---
+title: "ADP 21회차 기출"
+output:
+  html_document:
+    number_sections: true
+    fig_caption: true
+    toc: true
+    fig_width: 5
+    fig_height: 4
+    theme: cosmo
+    highlight: tango
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      fig.align = "center")
+```
+
+# Preparations (준비작업) {.tabset .tabset-fade}
+
+## Libraries
+
+ADP 시험 때 쓸 수 있는 패키지는 현재 기준 최신 버전이 아니라 약 2020년 초 버전입니다. 따라서 시험장에서 제공하는 패키지 버전을 기준으로 설치를 하고 실습을 진행해야합니다. 홈페이지에 사용할 수 있는 패키지와 version이 나와있기 때문에 참고하시면 됩니다.
+
+<https://www.dataq.or.kr/www/board/view.do>
+
+```{r load_lib, message=FALSE, warning=FALSE, results='hide'}
+
+# 패키지 구버전 설치방법 
+
+# devtools::install_version("recipes", version = "0.1.15")
+# devtools::install_version("data.table", version = "1.13.4")
+# devtools::install_version("caret", version = "6.0-86")
+# devtools::install_version("GGally", version = "2.0.0")
+# devtools::install_version("tidyverse", version = "1.3.0")
+# devtools::install_version("janitor", version = "2.0.1")
+# devtools::install_version("rsample", version = "0.0.8")
+# enter를 누르면 skip됩니다. 
+
+
+library(data.table)
+library(tidyverse)
+library(caret)
+library(recipes)
+library(GGally)
+library(janitor)
+
+theme_set(theme_bw())
+```
+
+## Data load {.tabset .tabset-fade}
+
+```{r}
+file_path <- "./data/"
+files <- list.files(file_path)
+files
+```
+
+```{r, message=FALSE}
+dat <- fread(file.path(file_path, "student-mat.csv"))
+```
+
+```{r}
+dat %>% names()
+dat %>% dim()
+dat <- dat %>% 
+    dplyr::select(school, sex, paid, famrel, freetime, goout, Dalc, Walc, health, absences, G3) %>% 
+    filter(G3%in%c(0, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18)) %>% 
+    mutate(G3 = replace(G3, G3 == 6, 1), 
+           G3 = replace(G3, G3 == 8, 2),
+           G3 = replace(G3, G3 == 9, 3),
+           G3 = replace(G3, G3 == 10, 4),
+           G3 = replace(G3, G3 == 11, 5),
+           G3 = replace(G3, G3 == 12, 6),
+           G3 = replace(G3, G3 == 13, 7),
+           G3 = replace(G3, G3 == 14, 8),
+           G3 = replace(G3, G3 == 15, 9),
+           G3 = replace(G3, G3 == 16, 10),
+           G3 = replace(G3, G3 == 18, 11),
+           ) %>% 
+    rename(grade = G3) -> dat
+
+dat %>% dim()
+
+index <- sample.int(n = 366, size = 10)
+
+dat[index, 'goout'] <- NA
+
+# dat %>% names()
+# dat %>% 
+#   recipe(grade~.) %>% 
+#   step_mutate(grade = as.factor(grade)) %>% 
+#   recipes::step_upsample(grade, over_ratio = 1)%>% 
+#   prep() %>% 
+#   juice() -> dat
+#   
+# dat <- dat %>% 
+#   mutate(grade = as.integer(grade)) 
+
+```
+
+# Data description
+
+-   school - student's school (binary: "GP" - Gabriel Pereira or "MS" - Mousinho da Silveira)
+
+-   sex - student's sex (binary: "F" - female or "M" - male)
+
+-   paid - extra paid classes within the course subject (Math or Portuguese) (binary: yes or no)
+
+-   famrel - quality of family relationships (numeric: from 1 - very bad to 5 - excellent)
+
+-   freetime - free time after school (numeric: from 1 - very low to 5 - very high)
+
+-   goout - going out with friends (numeric: from 1 - very low to 5 - very high)
+
+-   Dalc - workday alcohol consumption (numeric: from 1 - very low to 5 - very high)
+
+-   Walc - weekend alcohol consumption (numeric: from 1 - very low to 5 - very high)
+
+-   health - current health status (numeric: from 1 - very bad to 5 - very good)
+
+-   absences - number of school absences (numeric: from 0 to 93)
+
+-   G3 - final grade (numeric: from 0 to 20, output target)
+
+```{r}
+dat %>% head()
+dat %>% glimpse()
+
+dat <- dat %>% 
+    janitor::clean_names()
+```
+
+# EDA(탐색적 자료분석) {.tabset .tabset-fade}
+
+## 변수 속성 변환
+
+-   변수별 그래프를 그리기 전에 변수별 속성을 확인하고 바꿔줘야함
+
+    -   mutate : 지정된 변수 하나에 대해 조작하는 함수
+
+    -   mutate_if : 지정된 조건에 해당하는 변수만 조작하는 함수
+
+    -   mutate_at : 지정된 변수 전체에 대해 조작하는 함수
+
+```{r}
+# mutate_at 
+dat %>% 
+    mutate_at(vars(starts_with('f')), log)
+
+standardize <- function(x, na.rm = T){
+    (x - mean(x, na.rm = T))/sd(x, na.rm = T)
+}
+dat %>% 
+    mutate_at(vars(starts_with('f')), standardize)
+
+dat %>% 
+    mutate_at(vars('freetime', 'goout'), standardize)
+
+dat %>% 
+    mutate_at(c('freetime', 'goout'), standardize)
+
+# mutat_if 
+dat %>% 
+    mutate_if(is.integer, standardize)
+
+dat %>% 
+    mutate_if(is.integer, as.factor)
+
+
+```
+
+```{r}
+dat <- dat %>% 
+    mutate_if(is.character, as.factor) %>% 
+    mutate(grade = as.integer(grade))
+```
+
+## 데이터 요약통계량
+
+-   결측치 및 이상치 확인
+
+-   변수별 요약 통계량 확인
+
+```{r}
+dat %>% summary()
+```
+
+## visualization
+
+-   반응변수 vs 설명변수 상관계수 확인
+
+-   설명변수 vs 설명변수 상관계수 확인
+
+-   변수별 분포 확인(연속형 변수의 분포의 치우침, 범주형 변수의 class 불균형 확인)
+
+-   범주형 설명변수와 반응변수 boxplot 그리기
+
+**여기서 주의해야할 점은 시각화에 많은 시간을 소요하면 안됩니다. 시각화 배점은 5점 정도이고, 문제에서 요구하는 것이 모호하기 때문에 필요 이상으로 쓰지 않아도 점수가 깍이지 않습니다. 따라서 형식적인 시각화 및 짧은 해석을 하고 넘어갑니다.**
+
+-   Package : GGally
+
+```{r}
+dat %>% 
+    select_if(is.factor) %>% 
+    ggpairs()
+
+dat %>% 
+    select_if(is.integer) %>% 
+    ggpairs()
+
+
+dat %>% 
+    ggplot(aes(x = school, y = grade)) + geom_boxplot()
+
+dat %>% 
+    ggplot(aes(x = sex, y = grade)) + geom_boxplot()
+
+dat %>% 
+    ggplot(aes(x = paid, y = grade)) + geom_boxplot()
+```
+
+# Data preprocessing(데이터 전처리)
+
+# 결측치 처리 {.tabset .tabset-fade}
+
+-   통계량을 이용한 결측치 처리 방법
+
+    -   평균 대치법
+
+    -   중앙값 대치법
+
+    -   최빈값 대치법
+
+-   모형을 이용한 결측치 처리 방법
+
+    -   회귀분석을 이용한 대치법
+
+    -   의사결정나무를 이용한 대치법
+
+    -   KNN을 이용한 대치법
+
+-   Package : recipes
+
+## 결측치 확인
+
+```{r}
+# r base 
+dat %>% is.na() %>% colSums()
+
+# dplyr
+dat %>% 
+    summarise_all(funs(sum(is.na(.))))
+
+
+```
+
+## 평균 대치법
+
+변수의 분포가 정규분포 형태일 때 사용
+
+```{r}
+library(recipes)
+
+dat %>% 
+    recipe(grade~.) %>% 
+    step_meanimpute(goout) %>% 
+    prep() %>% 
+    juice() %>% 
+    is.na() %>% 
+    colSums()
+
+# dat$goout[is.na(dat$goout)] <- mean(dat$goout, na.rm = T)
+```
+
+## 중앙값 대치법
+
+변수의 분포가 치우쳐져 있을 때 혹은 이상치가 존재하는 경우 사용
+
+```{r}
+#devtools::install_version("recipes", version = "0.1.15")
+library(recipes)
+
+dat %>% 
+    recipe(grade~.) %>% 
+    step_medianimpute(goout) %>% 
+    prep() %>% 
+    juice() %>% 
+    is.na() %>% 
+    colSums()
+
+# dat$goout[is.na(dat$goout)] <- median(dat$goout, na.rm = T)
+```
+
+## 최빈값 대치법
+
+변수가 character, factor 일 때 사용
+
+```{r}
+library(recipes)
+
+# dat %>% 
+#     recipe(grade~.) %>% 
+#     step_modeimpute(goout) %>% 
+#     prep() %>% 
+#     juice() %>% 
+#     is.na() %>% 
+#     colSums()
+
+# dat$goout[is.na(dat$goout)] <- mode(dat$goout, na.rm = T)
+```
+
+## 회귀분석을 이용한 대치법
+
+```{r}
+dat %>% 
+    recipe(grade~.) %>% 
+    step_impute_linear(goout, impute_with = imp_vars(paid, sex, freetime, dalc)) %>% 
+    prep() %>% 
+    juice() %>% 
+    is.na() %>% 
+    colSums()
+
+dat %>% 
+    recipe(grade~.) %>% 
+    step_impute_linear(goout, impute_with = imp_vars(all_predictors())) %>% 
+    prep() %>% 
+    juice() %>% 
+    is.na() %>% 
+    colSums()
+
+```
+
+## bagged tree model을 이용한 대치법
+
+```{r}
+dat %>% 
+    recipe(grade~.) %>% 
+    step_bagimpute(goout, impute_with = imp_vars(all_predictors())) %>% 
+    prep() %>% 
+    juice() %>% 
+```
+
+## KNN을 이용한 대치법
+
+```{r}
+dat %>% 
+    recipe(grade~.) %>% 
+    step_knnimpute(goout, impute_with = imp_vars(all_predictors())) %>% 
+    prep() %>% 
+    juice() %>% 
+    is.na() %>% 
+    colSums()
+```
+
+## 최종 대치방법
+
+```{r}
+dat1 <- dat %>% 
+    recipe(grade~.) %>% 
+    step_bagimpute(goout, impute_with = imp_vars(all_predictors())) %>% 
+    prep() %>% 
+    juice()
+
+dat1 %>% is.na() %>% colSums()
+```
+
+# Encoding 방법 {.tabset .tabset-fade}
+
+## Label encoding
+
+-   알파벳 순으로 번호를 매기기 때문에 범주형 변수 코딩에 대한 수치 정보가 반영되는 문제가 있음
+
+-   순서형 변수일 경우 사용
+
+```{r}
+dat1 %>% 
+  recipe(grade~.) %>% 
+  step_dummy(all_nominal()) %>% 
+  prep() %>% 
+  juice()
+```
+
+## one-hot encoding
+
+-   Label encoding의 문제점인 수치 정보가 반영되는 문제를 해결 가능
+
+-   범주형 변수 간의 다중공선성 문제가 있을 수 있음(회귀분석에서 문제가 됨)
+
+-   차원이 늘어남에 따라 계산량이 늘어나는 문제가 있음
+
+-   순서형 변수가 아닐 때 모두 사용 가능
+
+```{r}
+dat1 <- dat1 %>% 
+  recipe(grade~.) %>% 
+  step_dummy(all_nominal(), one_hot = T) %>% 
+  prep() %>% 
+  juice()
+```
+
+# Data split(데이터 분할) {.tabset .tabset-fade}
+
+## simple random sampling
+
+-   데이터를 무작위로 7:3으로 분할
+
+-   범주형 변수의 class가 불균형할 때 랜덤 샘플링을 할 경우 train or test 데이터가 전체 데이터를 대표하지 못함
+
+-   연속형 변수의 경우 분포가 치우쳐져 있을 때 같은 문제가 발생함
+
+```{r}
+# caret 패키지 이용 
+library(caret)
+set.seed(1234)
+train_index <- createDataPartition(dat$grade, p = 0.7, list = F) 
+# list = FALSE avoids returning the data as a list
+
+train <- dat[train_index, ]
+test <- dat[-train_index, ]
+
+# rsample 패키지 이용 
+library(rsample)
+splits <- initial_split(dat, prop = 0.7)
+train <- training(splits)
+test <- testing(splits)
+```
+
+## strata sampling
+
+-   랜덤샘플링의 해결 방안으로 class의 빈도를 고려해서 샘플링을 진행함
+
+-   연속형 변수의 경우, quantile을 기준으로 bin을 나눠서 샘플링을 진행함
+
+```{r}
+# caret 패키지 이용 
+library(caret)
+set.seed(1234)
+train_index <- createDataPartition(dat$sex, p = 0.7, list = F) 
+# list = FALSE avoids returning the data as a list
+
+train <- dat[train_index, ]
+test <- dat[-train_index, ]
+
+
+
+# rsample 패키지 이용 
+library(rsample)
+splits <- initial_split(dat1, prop = 0.8, strata = grade)
+train <- training(splits)
+test <- testing(splits)
+
+```
+
+# Modeling {.tabset .tabset-fade}
+
+-   SVM
+
+-   XGBOOST
+
+-   Random forest
+
+## Random forest 
+
+```{r}
+library(caret)
+
+set.seed(123)
+control <- trainControl(method='repeatedcv', 
+                        number=5, 
+                        repeats=3, 
+                        search='grid')
+
+tunegrid <- expand.grid(mtry = c(1:5))
+
+rf_gridsearch <- train(grade ~ .,             
+                       data = train,               
+                       method = 'rf',         
+                       metric = 'RMSE',
+                       tuneGrid = tunegrid)
+
+plot(varImp(rf_gridsearch, scale = F))
+
+pred <- predict(rf_gridsearch, newdata = test)
+print(RMSE(pred, test$grade))
+```
+```{r}
+pred %>% head() # integer가 아님
+pred %>% round() %>% head()
+
+pred_r <- pred %>% round() 
+print(RMSE(pred_r, test$grade))
+
+```
+
+
+## XGBOOST 
+
+```{r}
+library(caret)
+
+set.seed(123)
+control <- trainControl(method='repeatedcv', 
+                        number=5, 
+                        repeats=3, 
+                        search='grid')
+
+modelLookup('xgbTree')
+
+# rf_gridsearch <- train(grade ~ .,             
+#                        data = train,               
+#                        method = 'xgbTree',         
+#                        metric = 'RMSE',
+#                        tuneLength = 10)
+# expand.grid를 사용하기 위해서는 개별 파라미터를 모두 지정해줘야함 
+tunegrid <- expand.grid(
+  nrounds = seq(from = 200, to = 1000, by = 50),
+  eta = c(0.025, 0.05, 0.1, 0.3),
+  max_depth = c(2, 3, 4, 5, 6),
+  gamma = 0,
+  colsample_bytree = 1,
+  min_child_weight = 1,
+  subsample = 1
+)
+
+xgb_gridsearch <- train(grade ~ .,             
+                       data = train,               
+                       method = 'xgbTree',         
+                       metric = 'RMSE',
+                       tuneLength = 3)
+plot(varImp(xgb_gridsearch, scale = F))
+
+pred <- predict(xgb_gridsearch, newdata = test)
+print(RMSE(pred, test$grade))
+
+```
+
+## SVM
+
+```{r}
+modelLookup('svmPoly')
+
+set.seed(123)
+control <- trainControl(method='repeatedcv', 
+                        number=5, 
+                        repeats=3, 
+                        search='grid')
+
+
+svm_gridsearch <- train(grade ~ .,             
+                       data = train,               
+                       method = 'svmPoly',         
+                       metric = 'RMSE',
+                       tuneLength = 3)
+
+plot(varImp(svm_gridsearch))
+
+pred <- predict(rf_gridsearch, newdata = test)
+print(RMSE(pred, test$grade))
+
+```
