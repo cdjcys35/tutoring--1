@@ -1,0 +1,141 @@
+---
+title: "ADP contents"
+output:
+  html_document:
+    number_sections: true
+    fig_caption: true
+    toc: true
+    fig_width: 5
+    fig_height: 4
+    theme: cosmo
+    highlight: tango
+    code_folding: show
+---
+
+# ADP 실기 강의
+
+# EDA(탐색적 자료분석)
+
+-   변수별 요약통계량 도출
+
+-   변수별 관계 시각화
+
+-   변수별 상관분석 및 시각화
+
+**배점이 높지 않기 때문에 간단하게 하고 넘어가야됨.**
+
+**실제로 구체적으로 무엇을 진행하라고 써있지 않기 때문에 위에 3가지 중 2가지만 해도 점수를 받을 수 있음.**
+
+# Data preprocessing
+
+-   결측치 처리
+
+    -   통계량을 이용한 결측치 처리 방법
+
+        -   평균 대치법
+
+        -   중앙값 대치법
+
+        -   최빈값 대치법
+
+    -   모형을 이용한 결측치 처리 방법
+
+        -   회귀분석을 이용한 대치법
+
+        -   의사결정나무를 이용한 대치법
+
+        -   KNN을 이용한 대치법
+
+-   범주형 변수 식별 및 변환
+
+    -   One-hot encoding
+
+    -   label encoding
+
+-   파생 변수 생성
+
+-   변수 변환 및 정규화
+
+    -   Box-cox 변환
+
+    -   min-max 정규화
+
+    -   표준화
+
+-   타겟변수 불균형 처리 방법
+
+    -   undersampling
+
+    -   oversampling
+
+-   차원 축소
+
+    -   PCA
+
+**Data preprocessing 단계를 진행할 때 전부 왜 처리를 해줬는지 이유를 설명할 수 있어야함.**
+
+# 분류 및 예측 모형
+
+-   multiple regression
+
+-   logistic regression
+
+-   ridge regression
+
+-   lasso regression
+
+-   elastic net
+
+-   decision tree
+
+-   SVM
+
+-   Random forest
+
+-   xgboost
+
+**모형별 장단점에 대해 간략하게 기술할 수 있어야함**.
+
+# 시계열 분석
+
+-   ARIMA
+
+-   SARIMA
+
+-   time series regression
+
+**시계열 모형 적합 절차에 대해 알고 있어야함.**
+
+# 군집분석
+
+-   KNN
+
+-   EM
+
+-   SOM
+
+-   K-means
+
+# 통계분석
+
+-   t 검정
+
+-   교차분석
+
+-   분산분석
+
+-   이원배치 분산분석
+
+-   상관분석
+
+# 기타 모형
+
+-   장바구니 분석
+
+-   텍스트 마이닝
+
+# 시각화 
+
+-   polynomial regression
+
+-   heatmap
