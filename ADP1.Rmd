@@ -36,6 +36,8 @@ ADP 시험 때 쓸 수 있는 패키지는 현재 기준 최신 버전이 아니
 # devtools::install_version("tidyverse", version = "1.3.0")
 # devtools::install_version("janitor", version = "2.0.1")
 # devtools::install_version("rsample", version = "0.0.8")
+# devtools::install_version("DescTools", version = "0.99.39")
+# devtools::install_version("car", version = "3.0-10")
 # enter를 누르면 skip됩니다. 
 
 
@@ -764,7 +766,175 @@ dat %>%
 
 -   주어진 데이터에 대해서 이원배치 분산분석을 수행하고 결과 해석
 
-```{r}
+## 이원배치 분산분석 개념
 
+-   하나의 반응변수에 대한 두 범주형 변수의 효과를 검증하는 방법
+-   예를 들면 성별과 학년에 따른 시험 점수의 차이를 통계적으로 검정하기 위해 이원배치 분산분석을 실시할 수 있음 **범주형 변수는 반드시 factor로 구성해야함**
+
+## Hypotheses
+
+1.  factor A 간의 평균 차이가 없다
+2.  factor B 간의 평균 차이가 없다
+3.  factor A, B 간에 상호작용 효과가 없다
+
+## Assumption
+
+1.  정규성
+2.  등분산성
+
+**가정이 만족하는지 반드시 체크해야함**
+
+## Data
+
+데이터는 비타민 C가 기니피그의 치아 성장에 영향을 미치는지 통계적으로 검정하고자함
+
+$$
+\begin{align*}
+&H_0 : \text{비타민 C 투여량과 기니피그의 치아 성장 사이에는 차이가 없다.} \\ 
+&H_0 : \text{비타민 C 투약 방법과 기니피그의 치아 성장 사이에는 차이가 없다.} \\ 
+&H_0 : \text{비타민 C 투약 방법과 비타민 C 투여량 사이에는 상호작용 효과가 존재한다.} \\ 
+\end{align*}
+$$
+
+| Variable | Description                         |
+|----------|-------------------------------------|
+| len      | 기니피그의 치아길이                 |
+| dose     | 비타민 C 투여량(mg/day)             |
+| sup      | orange juice(OJ), ascorbic acid(VC) |
+
+```{r}
+data("ToothGrowth")
+dat <- ToothGrowth
+dat %>% glimpse()
+```
+
+## factor로 변환
+
+```{r}
+dat$dose <- factor(dat$dose, levels = c(0.5, 1, 2), labels = c("D0.5", "D1", "D2"))
+dat %>% head()
+```
+
+## Visualization
+
+```{r}
+dat %>% 
+  group_by(dose, supp) %>% 
+  summarise(len = mean(len)) %>% 
+  ungroup() -> dat_boxplot
+
+
+ggplot(dat, aes(dose, len, colour=supp)) +
+  geom_boxplot() +
+  geom_point(data = dat_boxplot, aes(group=supp), colour="blue", 
+             position = position_dodge(width=0.75)) +
+  geom_line(data = dat_boxplot, aes(group=supp), 
+            position = position_dodge(width=0.75)) +
+  scale_x_discrete("Dose") +
+  scale_y_continuous("Response")
+```
+
+## anova
+
+```{r}
+aov_purr <- aov(len~supp + dose, data = dat)
+summary(aov_purr)
+```
+
+## Two-way ANOVA
+
+```{r}
+# 결과 동일 
+aov1 <- aov(len~supp*dose, data = dat)
+aov2 <- aov(len~supp+dose + supp:dose, data = dat)
+
+summary(aov1) 
+summary(aov2)
 
 ```
+
+**해석**
+
+1.  supp의 p-value가 0.000231로 매우 작기 때문에 $\alpha=0.05$에서 귀무가설을 기각한다. 따라서 비타민 C 투약방법에 따른 기니피그의 치아 성장 사이에는 유의미한 차이가 존재한다.
+2.  dose의 p-value가 \<2e-16로 매우 작기 때문에 $\alpha=0.05$에서 귀무가설을 기각한다. 따라서 비타민 C 투여량에 따른 기니피그의 치아 성장 사이에는 유의미한 차이가 존재한다.
+3.  supp:dose의 p-value가 0.021860으로 매우 작기 때문에 $\alpha=0.05$에서 귀무가설을 기각한다. 따라서 비타민 C 투여량과 비타민 C 투약 방법 사이에는 상호작용 효과가 존재한다.
+
+## Interaction plot
+
+```{r}
+interaction.plot(dat$dose, dat$supp, dat$len, col = c('red', 'blue'))
+```
+
+```{r}
+model.tables(aov1, type = 'means', se = T)
+```
+
+## Multiple pairwise-comparisons
+
+실제로 factor 변수 안에 어떤 그룹 간에 평균 차이가 존재하는지 알아보고자 함
+
+```{r}
+TukeyHSD(aov1, which = "dose")
+```
+
+**해석**
+
+1.  D1(하루에 1mg의 비타민을 투여했을 때)과 D0.5(하루에 0.5mg의 비타민을 투여했을 때) 간의 평균 차이는 9.13이고, adj p-value가 0.0e+00이므로 두 그룹 간에는 평균 차이가 존재한다.
+2.  D2(하루에 2mg의 비타민을 투여했을 때)과 D0.5(하루에 0.5mg의 비타민을 투여했을 때) 간의 평균 차이는 15.495이고, adj p-value가 0.0e+00이므로 두 그룹 간에는 평균 차이가 존재한다.
+3.  D2(하루에 2mg의 비타민을 투여했을 때)과 D1(하루에 1mg의 비타민을 투여했을 때) 간의 평균 차이는 6.365이고, adj p-value가 2.7e-06이므로 두 그룹 간에는 평균 차이가 존재한다.
+
+
+```{r}
+library(DescTools)
+ScheffeTest(aov1, conf.level = 0.95)
+```
+
+**scheffe's test는 turkey HSD test와 달리 모든 쌍에 대한 출력물을 산출하기 때문에 sheffe test를 이용하는 것이 효율적**
+
+해석방법은 위에 tukey와 동일함. 
+
+## Check assumption
+
+1.  등분산성 가정 
+
+잔차의 값이 +-5 사이에서 고르게 분포함. 즉, 분산이 증가하거나 감소하는 경향이 없음. 따라서 등분산성 가정을 만족한다고 볼 수 있음.
+
+```{r}
+plot(aov1, 1)
+```
+```{r}
+library(car)
+leveneTest(len~dose, data = dat)
+```
+
+$$
+\begin{align*}
+&H_0 : \text{집단 간 분산이 동일하다} \\
+&H_1 : \text{Not }H_0
+\end{align*}
+$$
+
+$\alpha = 0.05$에서 p-value가 0.5281로 매우 크기 때문에 $H_0$를 기각할 수 없음. 따라서 등분산성 가정 만족 
+
+
+2.  정규성 가정 
+
+normal Q-Q plot에서 점들이 대부분 직선 상에 존재하기 때문에 정규성을 만족한다고 볼 수 있음 
+```{r}
+plot(aov1, which = 2)
+```
+
+```{r}
+shapiro.test(aov1$residuals)
+```
+
+
+$$
+\begin{align*}
+&H_0 : \text{데이터가 정규분포를 따른다} \\
+&H_1 : \text{Not }H_0
+\end{align*}
+$$
+
+$\alpha = 0.05$에서 p-value가 0.6694로 매우 크기 때문에 $H_0$를 기각할 수 없음. 따라서 정규성 만족 
+
