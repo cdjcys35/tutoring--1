@@ -340,6 +340,8 @@ dat %>%
     step_bagimpute(goout, impute_with = imp_vars(all_predictors())) %>% 
     prep() %>% 
     juice() %>% 
+    is.na() %>% 
+    colSums()
 ```
 
 ## KNN을 이용한 대치법
@@ -461,7 +463,7 @@ test <- testing(splits)
 
 -   Random forest
 
-## Random forest 
+## Random forest
 
 ```{r}
 library(caret)
@@ -485,6 +487,7 @@ plot(varImp(rf_gridsearch, scale = F))
 pred <- predict(rf_gridsearch, newdata = test)
 print(RMSE(pred, test$grade))
 ```
+
 ```{r}
 pred %>% head() # integer가 아님
 pred %>% round() %>% head()
@@ -494,8 +497,7 @@ print(RMSE(pred_r, test$grade))
 
 ```
 
-
-## XGBOOST 
+## XGBOOST
 
 ```{r}
 library(caret)
@@ -554,9 +556,215 @@ svm_gridsearch <- train(grade ~ .,
                        metric = 'RMSE',
                        tuneLength = 3)
 
-plot(varImp(svm_gridsearch))
+# plot(varImp(svm_gridsearch)) : 분류문제일 때만 그래프 그릴 수 있음 
 
 pred <- predict(rf_gridsearch, newdata = test)
 print(RMSE(pred, test$grade))
+
+```
+
+# Regression {.tabset .tabset-fade}
+
+-   데이터를 8:2로 분할하기
+
+-   Multiple regression 적합 후 R2, MSE 값 산출
+
+-   Ridge regression 적합 후 R2, MSE 값 산출
+
+    -   alpha 값을 0\~1까지 0.1 단위로 모두 탐색 후 최적의 파라미터 선택
+
+-   LASSO regression 적합 후 R2, MSE 값 산출
+
+    -   alpha 값을 0\~1까지 0.1 단위로 모두 탐색 후 최적의 파라미터 선택
+
+## Data
+
+```{r}
+data("Boston", package = "MASS")
+Boston %>% head()
+Boston %>% glimpse()
+
+```
+
+## Data split
+
+```{r}
+set.seed(123)
+library(rsample)
+splits <- initial_split(Boston, prop = 0.8, strata = medv)
+train <- training(splits)
+test <- testing(splits)
+
+
+set.seed(123)
+training.samples <- Boston$medv %>%
+  createDataPartition(p = 0.8, list = FALSE)
+train.data  <- Boston[training.samples, ]
+test.data <- Boston[-training.samples, ]
+
+```
+
+## Multiple regression
+
+```{r}
+set.seed(123)
+control <- trainControl(method='cv', 
+                        number=5)
+
+
+lm_gridsearch <- train(medv ~ .,             
+                       data = train,               
+                       method = 'lm',         
+                       metric = 'RMSE', 
+                       trControl = control)
+
+
+pred <- predict(lm_gridsearch, newdata = test)
+print(RMSE(pred, test$medv))
+print(R2(pred, test$medv))
+
+```
+
+## LASSO regression
+
+```{r}
+set.seed(123)
+control <- trainControl(method='cv', 
+                        number=5)
+
+lambda <- seq(0, 1, length = 11)  
+
+lasso_grid <- expand.grid(alpha = 1, lambda = lambda) # alpha = 1 : lasso 
+
+lasso_gridsearch <- train(medv ~ .,             
+                       data = train,               
+                       method = 'glmnet',         
+                       metric = 'RMSE', 
+                       trControl = control, 
+                       tuneGrid = lasso_grid
+                       )
+lasso_gridsearch
+lasso_gridsearch$bestTune
+# Model coef 
+coef(lasso_gridsearch$finalModel, lasso_gridsearch$bestTune$lambda)
+
+
+pred <- predict(lasso_gridsearch, newdata = test)
+print(RMSE(pred, test$medv))
+print(R2(pred, test$medv))
+
+```
+
+## Ridge regression
+
+```{r}
+set.seed(123)
+control <- trainControl(method='cv', 
+                        number=5)
+
+lambda <- seq(0, 1, length = 11)
+
+ridge_grid <- expand.grid(alpha = 0, lambda = lambda) # alpha = 0 : ridge 
+
+ridge_gridsearch <- train(medv ~ .,             
+                       data = train,               
+                       method = 'glmnet',         
+                       metric = 'RMSE', 
+                       trControl = control, 
+                       tuneGrid = ridge_grid
+                       )
+
+ridge_gridsearch
+ridge_gridsearch$bestTune
+
+# Model coef 
+coef(ridge_gridsearch$finalModel, ridge_gridsearch$bestTune$lambda)
+
+
+pred <- predict(ridge_gridsearch, newdata = test)
+print(RMSE(pred, test$medv))
+print(R2(pred, test$medv))
+```
+
+## Elastic net
+
+```{r}
+set.seed(123)
+control <- trainControl(method='cv', 
+                        number=5)
+
+lambda <- 10^seq(-3, 3, length = 10) # lambda 값은 문제에서 범위를 지정해줌 
+alpha <- seq(0, 1, length = 10)
+elastic_grid <- expand.grid(alpha = alpha, lambda = lambda) # alpha = 0 : ridge 
+
+elastic_gridsearch <- train(medv ~ .,             
+                       data = train,               
+                       method = 'glmnet',         
+                       metric = 'RMSE', 
+                       trControl = control, 
+                       tuneGrid = elastic_grid
+                       )
+
+
+# Model coef 
+coef(elastic_gridsearch$finalModel, elastic_gridsearch$bestTune$lambda)
+
+
+pred <- predict(elastic_gridsearch, newdata = test)
+print(RMSE(pred, test$medv))
+print(R2(pred, test$medv))
+```
+
+# Polynomial Regression {.tabset .tabset-fade}
+
+-   데이터에 대한 산점도와 polynomial regression을 3차항까지 적합한 그림을 그리시오
+
+**참고: 문제에 주어진 그림만 똑같이 그리면 됨**
+
+## Data
+
+```{r}
+set.seed(20)
+
+x <- seq(0, 20, by = 0.1)
+noise <- rnorm(length(x), mean = 10, sd = 80)
+y <- 500 + 0.4*(x-10)^3 + noise
+
+dat <- data.frame(x, y)
+```
+
+## lm fitting
+
+```{r}
+dat %>% 
+  ggplot(aes(x = x, y = y)) + 
+  geom_point() + 
+  stat_smooth(method = 'lm')
+```
+
+## Polynomial fitting(2차항)
+
+```{r}
+dat %>% 
+  ggplot(aes(x = x, y = y)) + 
+  geom_point() + 
+  stat_smooth(method = 'lm', formula = y~poly(x, 2))
+```
+
+## Polynomial fitting(3차항)
+
+```{r}
+dat %>% 
+  ggplot(aes(x = x, y = y)) + 
+  geom_point() + 
+  stat_smooth(method = 'lm', formula = y~poly(x, 3))
+```
+
+# 이원배치 분산분석 {.tabset .tabset-fade}
+
+-   주어진 데이터에 대해서 이원배치 분산분석을 수행하고 결과 해석
+
+```{r}
+
 
 ```
