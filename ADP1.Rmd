@@ -23,7 +23,9 @@ knitr::opts_chunk$set(echo = TRUE,
 
 ADP 시험 때 쓸 수 있는 패키지는 현재 기준 최신 버전이 아니라 약 2020년 초 버전입니다. 따라서 시험장에서 제공하는 패키지 버전을 기준으로 설치를 하고 실습을 진행해야합니다. 홈페이지에 사용할 수 있는 패키지와 version이 나와있기 때문에 참고하시면 됩니다.
 
-<https://www.dataq.or.kr/www/board/view.do>
+<https://www.dataq.or.kr/www/board/notice/list.do>
+
+**2 page 제 21회 데이터분석 전문가(ADP) 실기시험 응시안내**
 
 ```{r load_lib, message=FALSE, warning=FALSE, results='hide'}
 
@@ -243,7 +245,7 @@ dat %>%
 
     -   KNN을 이용한 대치법
 
--   Package : recipes
+-   **Package : recipes**
 
 ## 결측치 확인
 
@@ -255,6 +257,60 @@ dat %>% is.na() %>% colSums()
 dat %>% 
     summarise_all(funs(sum(is.na(.))))
 
+
+```
+
+## Recipes 패키지 소개
+
+Recipes는 데이터 전처리에 필요한 여러가지 유용한 함수가 집약된 패키지입니다. ADP 시험에서 Recipes가 유용한 이유는 결측치 대치, 변수 속성 변경, encoding, upsampling, pca 등 데이터 전처리에 관한 거의 모든 것을 Recipes 패키지 하나로 처리할 수 있기 때문에 시간을 절약할 수 있습니다.
+
+**Recipes** 패키지는 원래 tidymodels(파이썬의 sklearn 같은)에서 이용하는 패키지입니다. tidymodels에서 모델 구축 이전에 데이터 전처리가 필요할 경우 이용하는 패키지입니다. 따라서 원래는 tidymodels의 고유한 workflow 안에 **Recipes** 가 포함되어 있으며, tidymodels의 고유한 workflow에 맞게 패키지가 설계되어있습니다. ADP 시험에서는 tidymodels를 이용할 수 없기 때문에, 기존의 workflow를 살짝 수정해서 이용합니다.
+
+**Recipes** 함수를 이용하기 위해서는 **Recipes** 패키지만의 고유한 workflow를 이해해야 합니다. workflow는 총 3단계로 구성되어 있습니다.
+
+1.  formula 정의 및 feature engineering
+
+    -   recipes(formula) : 모델을 구축하기 이전에 반응변수와 설명변수를 formula로 지정
+
+    -   step_function : recipe 내에 구축된 데이터 전처리 함수
+
+Recipe를 지정한다고 해서 데이터가 바로 바뀌지 않습니다. Recipes를 쉽게 생각하면 파이썬의 class 처럼 실행을 한다고 바로 바뀌는 것이 아니라 어떻게 전처리를 할 것인지 지정하는 단계라고 이해하면 됩니다.
+
+```{r}
+dat %>% 
+  recipe(grade~.) %>% 
+  step_meanimpute(goout)
+
+```
+
+2.  preparation
+
+    -   prep() : recipes에서 지정한 전처리 함수를 변환하기 이전에 준비하는 단계
+
+preperation도 Recipes와 마찬가지로 prep()을 한다고 데이터가 바뀌지 않습니다. prep()는 recipe에서 지정한 전처리 recipes를 다른 데이터셋에 적용할 수 있도록 필요한 파라미터를 추정하는 단계입니다. 별다른 의미가 있는 것이 아니라 마지막 juice 단계 이전에 무조건 사용해야하는 함수라고 이해하시면 됩니다.
+
+```{r}
+dat %>% 
+  recipe(grade~.) %>% 
+  step_meanimpute(goout) %>% 
+  prep()
+
+```
+
+3.  juice
+
+    -   juice() : recipes에서 정의한 데이터 전처리 함수를 적용해서 데이터를 추출하는 단계
+
+juice는 데이터를 추출하는 함수라고 이해하시면 됩니다.
+
+정리하면 요리를 만들 때처럼 Recipe를 준비하고, 요리에 필요한 재료를 prep()하고, 음식을 만드는 juice() 단계라고 이해하시면 됩니다.
+
+```{r}
+dat %>% 
+  recipe(grade~.) %>% 
+  step_meanimpute(goout) %>% 
+  prep() %>% 
+  juice()
 
 ```
 
@@ -457,7 +513,6 @@ test <- testing(splits)
 
 ```
 
-
 # Modeling {.tabset .tabset-fade}
 
 -   SVM
@@ -502,7 +557,7 @@ print(RMSE(pred_r, test$grade))
 
 ## XGBOOST
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 library(caret)
 
 set.seed(123)
@@ -584,7 +639,7 @@ $$
 
 Model complexity(polynomial의 차수)가 복잡해질수록 훈련 데이터에 대한 total error는 지속적으로 감소하지만 test data 관점에서는 일정 부분 감소하다가 빠르게 증가함. bias-variance 관점에서 보면 두가지를 모두 낮추는 것은 불가능하므로 타협점을 찾는 것이 필요함.
 
-## Penalized Regression 개념 
+## Penalized Regression 개념
 
 다시 회귀분석으로 돌아오면 일반 다중회귀모형에서 LSE(MSE가 최소가 되는 계수를 계산하는 방법)로 추정량 $\hat{\beta}$를 구할 수 있음. 이렇게 구한 추정량 $\hat{\beta}$은 BLUE(Best Linear Unbiased Estimator)의 성질, 즉 비편향 추정량 중에서 분산이 작은 성질이 있음.
 
