@@ -131,9 +131,10 @@ dat[index, 'goout'] <- NA
 ```{r}
 dat %>% head()
 dat %>% glimpse()
+dat %>% str()
 
 dat <- dat %>% 
-    janitor::clean_names()
+    janitor::clean_names() # 한글일 때는 주의 필요 
 ```
 
 # EDA(탐색적 자료분석) {.tabset .tabset-fade}
@@ -203,14 +204,14 @@ dat %>% summary()
 
 <!-- -->
 
--   Package : GGally
+-   Package : **GGally**
 -   문제 : 시각화 및 EDA
 
 **여기서 주의해야할 점은 시각화에 많은 시간을 소요하면 안됩니다. 시각화 배점은 5점 정도이고, 문제에서 요구하는 것이 모호하기 때문에 필요 이상으로 쓰지 않아도 점수가 깍이지 않습니다. 따라서 형식적인 시각화 및 짧은 해석을 하고 넘어갑니다.**
 
 ```{r}
 dat %>% 
-    select_if(is.factor) %>% 
+    select_if(is.factor) %>% # factor 변수 선택  
     ggpairs()
 
 dat %>% 
@@ -336,7 +337,8 @@ dat %>%
     recipe(grade~.) %>% 
     step_meanimpute(goout) %>% 
     prep() %>% 
-    juice() %>% 
+    juice() %>%
+    
     is.na() %>% 
     colSums()
 
@@ -386,7 +388,7 @@ library(recipes)
 ```{r}
 dat %>% 
     recipe(grade~.) %>% 
-    step_impute_linear(goout, impute_with = imp_vars(paid, sex, freetime, dalc)) %>% 
+    step_impute_linear(goout, impute_with = imp_vars(paid, sex, freetime)) %>% 
     prep() %>% 
     juice() %>% 
     is.na() %>% 
@@ -564,7 +566,7 @@ test <- testing(splits)
 
 -   package : **caret**
 
--   문제 : 3개 알고리즘의 공통점을 쓰고, 예측 분석에 적합한 알고리즘인지 설명
+-   문제 : 3개 알고리즘의 공통점을 쓰고, 예측 분석에 적합한 알고리즘인지 설명. 현업에서 쓸 때 고려해야할 점 작성
 
 # Caret package
 
@@ -603,12 +605,15 @@ rf_gridsearch <- train(grade ~ .,
                        trControl = control, 
                        metric = 'RMSE',
                        tuneGrid = tunegrid, 
-                       verbose = F)
+                       verbose = F) 
 
 plot(varImp(rf_gridsearch, scale = F))
 
+
 pred <- predict(rf_gridsearch, newdata = test)
 print(RMSE(pred, test$grade))
+
+
 ```
 
 ```{r}
@@ -624,7 +629,6 @@ print(RMSE(pred_r, test$grade))
 
 ```{r, message=FALSE, warning=FALSE}
 library(caret)
-
 set.seed(123)
 control <- trainControl(method='repeatedcv', 
                         number=5, 
@@ -697,7 +701,29 @@ print(RMSE(pred_r, test$grade))
 
 ```
 
-# Regression {.tabset .tabset-fade}
+# Modeling  {.tabset .tabset-fade}
+
+-   Multiple regression
+
+-   Ridge regression
+
+-   LASSO regression
+
+-   ELASTIC NET regression
+
+-   문제
+
+    -   데이터를 8:2로 분할하기
+
+    -   Multiple regression 적합 후 R2, MSE 값 산출
+
+    -   Ridge regression 적합 후 R2, MSE 값 산출
+
+        -   alpha 값을 0\~1까지 0.1 단위로 모두 탐색 후 최적의 파라미터 선택
+
+    -   LASSO regression 적합 후 R2, MSE 값 산출
+
+        -   alpha 값을 0\~1까지 0.1 단위로 모두 탐색 후 최적의 파라미터 선택
 
 ## Bias, variance의 의미
 
@@ -744,20 +770,6 @@ Ridge, LASSO, ELASTIC NET의 특징
     -   변수 간 상관관계를 반영한 모형
 
     -   상관관계가 큰 모형을 동시에 선택 or 배제하는 특성이 있음
-
-## Problem
-
--   데이터를 8:2로 분할하기
-
--   Multiple regression 적합 후 R2, MSE 값 산출
-
--   Ridge regression 적합 후 R2, MSE 값 산출
-
-    -   alpha 값을 0\~1까지 0.1 단위로 모두 탐색 후 최적의 파라미터 선택
-
--   LASSO regression 적합 후 R2, MSE 값 산출
-
-    -   alpha 값을 0\~1까지 0.1 단위로 모두 탐색 후 최적의 파라미터 선택
 
 ## Data
 
@@ -868,7 +880,7 @@ print(RMSE(pred, test$medv))
 print(R2(pred, test$medv))
 ```
 
-## Elastic net
+## Elastic net regression 
 
 ```{r}
 set.seed(123)
@@ -944,15 +956,13 @@ dat %>%
 
 # 이원배치 분산분석 {.tabset .tabset-fade}
 
-**Problem**
-
--   주어진 데이터에 대해서 이원배치 분산분석을 수행하고 결과 해석
+-   문제 : 주어진 데이터에 대해서 이원배치 분산분석을 수행하고 결과 해석
 
 ## 이원배치 분산분석 개념
 
 -   하나의 반응변수에 대한 두 범주형 변수의 효과를 검증하는 방법
--   예를 들면 성별과 학년에 따른 시험 점수의 차이를 통계적으로 검정하기 위해 이원배치 분산분석을 실시할 수 있음.
--    **범주형 변수는 반드시 factor로 구성해야함**
+-   예를 들면 성별과 학년에 따른 시험 점수의 차이를 통계적으로 검정하기 위해 이원배치 분산분석을 실시할 수 있음
+-   **범주형 변수는 반드시 factor로 구성해야함**
 
 ## Hypotheses
 
@@ -991,7 +1001,7 @@ dat <- ToothGrowth
 dat %>% glimpse()
 ```
 
-## factor로 변환
+## 범주형 변수 factor로 변환
 
 ```{r}
 dat$dose <- factor(dat$dose, levels = c(0.5, 1, 2), labels = c("D0.5", "D1", "D2"))
@@ -1075,15 +1085,19 @@ ScheffeTest(aov1, conf.level = 0.95)
 
 해석방법은 위에 tukey와 동일함.
 
-## Check assumption
+## 모형 가정 확인 
 
 1.  등분산성 가정
 
-잔차의 값이 +-5 사이에서 고르게 분포함. 즉, 분산이 증가하거나 감소하는 경향이 없음. 따라서 등분산성 가정을 만족한다고 볼 수 있음.
+**그래프를 이용한 방법**
 
 ```{r}
 plot(aov1, 1)
 ```
+
+잔차의 값이 +-5 사이에서 고르게 분포함. 즉, 분산이 증가하거나 감소하는 경향이 없음. 따라서 등분산성 가정을 만족한다고 볼 수 있음
+
+**검정을 이용한 방법**
 
 ```{r}
 library(car)
@@ -1101,11 +1115,15 @@ $\alpha = 0.05$에서 p-value가 0.5281로 매우 크기 때문에 $H_0$를 기�
 
 2.  정규성 가정
 
-normal Q-Q plot에서 점들이 대부분 직선 상에 존재하기 때문에 정규성을 만족한다고 볼 수 있음
+**그래프를 이용한 방법**
 
 ```{r}
 plot(aov1, which = 2)
 ```
+
+normal Q-Q plot에서 점들이 대부분 직선 상에 존재하기 때문에 정규성을 만족한다고 볼 수 있음
+
+**검정을 이용한 방법**
 
 ```{r}
 shapiro.test(aov1$residuals)
