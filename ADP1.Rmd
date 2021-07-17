@@ -201,9 +201,8 @@ dat %>% summary()
 
 -   범주형 설명변수와 반응변수 boxplot 그리기
 
-```{=html}
 <!-- -->
-```
+
 -   Package : GGally
 -   문제 : 시각화 및 EDA
 
@@ -567,11 +566,11 @@ test <- testing(splits)
 
 -   문제 : 3개 알고리즘의 공통점을 쓰고, 예측 분석에 적합한 알고리즘인지 설명
 
-# Caret package 
+# Caret package
 
 caret은 머신러닝 모델링을 위한 패키지입니다. caret은 거의 대부분의 머신러닝 모델을 지원합니다. ADP 시험에서 caret을 이용하는 이유는 여러가지 모델을 caret workflow를 이용해서 한번에 처리할 수 있기 때문에 시간을 절약할 수 있습니다. 개별 패키지를 caret으로 불러와서 사용하는 것이기 때문에 개별 패키지를 이용한 결과와 차이가 없습니다.
 
-## Caret workflow 
+## Caret workflow
 
 caret의 workflow는 모델을 적합하는 순서와 동일합니다.
 
@@ -945,12 +944,15 @@ dat %>%
 
 # 이원배치 분산분석 {.tabset .tabset-fade}
 
+**Problem**
+
 -   주어진 데이터에 대해서 이원배치 분산분석을 수행하고 결과 해석
 
 ## 이원배치 분산분석 개념
 
 -   하나의 반응변수에 대한 두 범주형 변수의 효과를 검증하는 방법
--   예를 들면 성별과 학년에 따른 시험 점수의 차이를 통계적으로 검정하기 위해 이원배치 분산분석을 실시할 수 있음 **범주형 변수는 반드시 factor로 구성해야함**
+-   예를 들면 성별과 학년에 따른 시험 점수의 차이를 통계적으로 검정하기 위해 이원배치 분산분석을 실시할 수 있음.
+-    **범주형 변수는 반드시 factor로 구성해야함**
 
 ## Hypotheses
 
@@ -1015,7 +1017,7 @@ ggplot(dat, aes(dose, len, colour=supp)) +
   scale_y_continuous("Response")
 ```
 
-## anova
+## ANOVA
 
 ```{r}
 aov_purr <- aov(len~supp + dose, data = dat)
