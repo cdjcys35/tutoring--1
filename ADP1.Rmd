@@ -514,7 +514,7 @@ dat1 <- dat1 %>%
 # caret 패키지 이용 
 library(caret)
 set.seed(1234)
-train_index <- createDataPartition(dat$grade, p = 0.7, list = F) 
+train_index <- createDataPartition(dat1$grade, p = 0.7, list = F) 
 # list = FALSE avoids returning the data as a list
 
 train <- dat[train_index, ]
@@ -522,7 +522,7 @@ test <- dat[-train_index, ]
 
 # rsample 패키지 이용 
 library(rsample)
-splits <- initial_split(dat, prop = 0.7)
+splits <- initial_split(dat1, prop = 0.7)
 train <- training(splits)
 test <- testing(splits)
 ```
@@ -601,7 +601,7 @@ tunegrid <- expand.grid(mtry = c(1:5))
 
 rf_gridsearch <- train(grade ~ .,             
                        data = train,               
-                       method = 'rf',
+                       method = 'rf',  
                        trControl = control, 
                        metric = 'RMSE',
                        tuneGrid = tunegrid, 
@@ -628,8 +628,10 @@ print(RMSE(pred_r, test$grade))
 ## XGBOOST
 
 ```{r, message=FALSE, warning=FALSE}
+
 library(caret)
 set.seed(123)
+
 control <- trainControl(method='repeatedcv', 
                         number=5, 
                         repeats=3, 
@@ -652,6 +654,7 @@ tunegrid <- expand.grid(
   min_child_weight = 1,
   subsample = 1
 )
+
 library(tictoc)
 tic()
 xgb_gridsearch <- train(grade ~ .,             
