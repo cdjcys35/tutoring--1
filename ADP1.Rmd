@@ -131,9 +131,10 @@ dat[index, 'goout'] <- NA
 ```{r}
 dat %>% head()
 dat %>% glimpse()
+dat %>% str()
 
 dat <- dat %>% 
-    janitor::clean_names()
+    janitor::clean_names() # 한글일 때는 주의 필요 
 ```
 
 # EDA(탐색적 자료분석) {.tabset .tabset-fade}
@@ -201,13 +202,16 @@ dat %>% summary()
 
 -   범주형 설명변수와 반응변수 boxplot 그리기
 
-**여기서 주의해야할 점은 시각화에 많은 시간을 소요하면 안됩니다. 시각화 배점은 5점 정도이고, 문제에서 요구하는 것이 모호하기 때문에 필요 이상으로 쓰지 않아도 점수가 깍이지 않습니다. 따라서 형식적인 시각화 및 짧은 해석을 하고 넘어갑니다.**
+<!-- -->
 
--   Package : GGally
+-   Package : **GGally**
+-   문제 : 시각화 및 EDA
+
+**여기서 주의해야할 점은 시각화에 많은 시간을 소요하면 안됩니다. 시각화 배점은 5점 정도이고, 문제에서 요구하는 것이 모호하기 때문에 필요 이상으로 쓰지 않아도 점수가 깍이지 않습니다. 따라서 형식적인 시각화 및 짧은 해석을 하고 넘어갑니다.**
 
 ```{r}
 dat %>% 
-    select_if(is.factor) %>% 
+    select_if(is.factor) %>% # factor 변수 선택  
     ggpairs()
 
 dat %>% 
@@ -227,6 +231,66 @@ dat %>%
 
 # Data preprocessing(데이터 전처리)
 
+# Recipes 패키지 소개
+
+Recipes는 데이터 전처리에 필요한 여러가지 유용한 함수가 집약된 패키지입니다. ADP 시험에서 Recipes가 유용한 이유는 결측치 대치, 변수 속성 변경, encoding, upsampling, pca 등 데이터 전처리에 관한 거의 모든 것을 Recipes 패키지 하나로 처리할 수 있기 때문에 시간을 절약할 수 있고, 에러가 날 확률이 적습니다.
+
+**Recipes** 패키지는 원래 tidymodels(파이썬의 sklearn 같은)에서 이용하는 패키지로 모델을 구축하기 이전에 데이터 전처리가 필요할 경우 이용하는 패키지입니다. 따라서 원래는 tidymodels의 고유한 workflow 안에 **Recipes** 가 포함되어 있으며, tidymodels의 고유한 workflow에 맞게 패키지가 설계되어있습니다. ADP 시험에서는 tidymodels를 이용할 수 없고 **Recipes** 만 이용하기 때문에 기존의 tidymodels workflow를 살짝 수정해서 이용합니다.
+
+**Recipes** 함수를 이용하기 위해서는 **Recipes** 패키지만의 고유한 workflow를 이해해야 합니다. workflow는 총 3단계로 구성되어 있습니다.
+
+1.  formula 정의 및 feature engineering
+
+    -   recipes(formula) : 모델을 구축하기 이전에 반응변수와 설명변수를 formula로 지정
+
+    -   step_function : recipe 내에 구축된 데이터 전처리 함수
+
+Recipe를 지정한다고 해서 데이터가 바로 바뀌지 않습니다. Recipes를 쉽게 생각하면 파이썬의 class 처럼 실행을 한다고 바로 바뀌는 것이 아니라 어떻게 전처리를 할 것인지 지정하는 단계라고 이해하면 됩니다.
+
+**Example**
+
+```{r}
+dat %>% 
+  recipe(grade~.) %>% 
+  step_meanimpute(goout)
+
+```
+
+2.  preparation
+
+    -   prep() : recipes에서 지정한 전처리 함수를 변환하기 이전에 준비하는 단계
+
+preperation도 Recipes와 마찬가지로 prep()을 한다고 데이터가 바뀌지 않습니다. prep()는 recipe에서 지정한 전처리 recipes를 다른 데이터셋에 적용할 수 있도록 필요한 파라미터를 추정하는 단계입니다. 별다른 의미가 있는 것이 아니라 마지막 juice 단계 이전에 무조건 사용해야하는 함수라고 이해하시면 됩니다.
+
+**Example**
+
+```{r}
+dat %>% 
+  recipe(grade~.) %>% 
+  step_meanimpute(goout) %>% 
+  prep()
+
+```
+
+3.  juice
+
+    -   juice() : recipes에서 정의한 데이터 전처리 함수를 적용해서 데이터를 추출하는 단계
+
+juice는 Recipe, prep 단계를 거치면서 정의된 모듈에서 데이터를 추출하는 함수라고 이해하시면 됩니다.
+
+정리하면 요리를 만들 때와 같이 Recipe를 준비하고, 요리에 필요한 재료를 prep()하고, 음식을 만드는 juice() 단계라고 이해하시면 됩니다.
+
+```{r}
+dat %>% 
+  recipe(grade~.) %>% 
+  step_meanimpute(goout) %>% 
+  prep() %>% 
+  juice()
+
+```
+
+**Recipes**를 이용해서 결측치를 대치하는 방법에 대해 알아보겠습니다.
+
 # 결측치 처리 {.tabset .tabset-fade}
 
 -   통계량을 이용한 결측치 처리 방법
@@ -245,7 +309,9 @@ dat %>%
 
     -   KNN을 이용한 대치법
 
--   **Package : recipes**
+-   **Package : Recipes**
+
+-   문제 : 결측치 식별, 결측치 대치 방법 2가지, 선택 이유 설명
 
 ## 결측치 확인
 
@@ -260,63 +326,9 @@ dat %>%
 
 ```
 
-## Recipes 패키지 소개
-
-Recipes는 데이터 전처리에 필요한 여러가지 유용한 함수가 집약된 패키지입니다. ADP 시험에서 Recipes가 유용한 이유는 결측치 대치, 변수 속성 변경, encoding, upsampling, pca 등 데이터 전처리에 관한 거의 모든 것을 Recipes 패키지 하나로 처리할 수 있기 때문에 시간을 절약할 수 있습니다.
-
-**Recipes** 패키지는 원래 tidymodels(파이썬의 sklearn 같은)에서 이용하는 패키지입니다. tidymodels에서 모델 구축 이전에 데이터 전처리가 필요할 경우 이용하는 패키지입니다. 따라서 원래는 tidymodels의 고유한 workflow 안에 **Recipes** 가 포함되어 있으며, tidymodels의 고유한 workflow에 맞게 패키지가 설계되어있습니다. ADP 시험에서는 tidymodels를 이용할 수 없기 때문에, 기존의 workflow를 살짝 수정해서 이용합니다.
-
-**Recipes** 함수를 이용하기 위해서는 **Recipes** 패키지만의 고유한 workflow를 이해해야 합니다. workflow는 총 3단계로 구성되어 있습니다.
-
-1.  formula 정의 및 feature engineering
-
-    -   recipes(formula) : 모델을 구축하기 이전에 반응변수와 설명변수를 formula로 지정
-
-    -   step_function : recipe 내에 구축된 데이터 전처리 함수
-
-Recipe를 지정한다고 해서 데이터가 바로 바뀌지 않습니다. Recipes를 쉽게 생각하면 파이썬의 class 처럼 실행을 한다고 바로 바뀌는 것이 아니라 어떻게 전처리를 할 것인지 지정하는 단계라고 이해하면 됩니다.
-
-```{r}
-dat %>% 
-  recipe(grade~.) %>% 
-  step_meanimpute(goout)
-
-```
-
-2.  preparation
-
-    -   prep() : recipes에서 지정한 전처리 함수를 변환하기 이전에 준비하는 단계
-
-preperation도 Recipes와 마찬가지로 prep()을 한다고 데이터가 바뀌지 않습니다. prep()는 recipe에서 지정한 전처리 recipes를 다른 데이터셋에 적용할 수 있도록 필요한 파라미터를 추정하는 단계입니다. 별다른 의미가 있는 것이 아니라 마지막 juice 단계 이전에 무조건 사용해야하는 함수라고 이해하시면 됩니다.
-
-```{r}
-dat %>% 
-  recipe(grade~.) %>% 
-  step_meanimpute(goout) %>% 
-  prep()
-
-```
-
-3.  juice
-
-    -   juice() : recipes에서 정의한 데이터 전처리 함수를 적용해서 데이터를 추출하는 단계
-
-juice는 데이터를 추출하는 함수라고 이해하시면 됩니다.
-
-정리하면 요리를 만들 때처럼 Recipe를 준비하고, 요리에 필요한 재료를 prep()하고, 음식을 만드는 juice() 단계라고 이해하시면 됩니다.
-
-```{r}
-dat %>% 
-  recipe(grade~.) %>% 
-  step_meanimpute(goout) %>% 
-  prep() %>% 
-  juice()
-
-```
-
 ## 평균 대치법
 
-변수의 분포가 정규분포 형태일 때 사용
+변수의 분포가 대칭 형태일 때 사용
 
 ```{r}
 library(recipes)
@@ -325,7 +337,8 @@ dat %>%
     recipe(grade~.) %>% 
     step_meanimpute(goout) %>% 
     prep() %>% 
-    juice() %>% 
+    juice() %>%
+    
     is.na() %>% 
     colSums()
 
@@ -357,7 +370,7 @@ dat %>%
 
 ```{r}
 library(recipes)
-
+# step_modeimpute의 경우 변수의 속성이 character or factor가 아니면 오류가 발생하므로 각주 처리함
 # dat %>% 
 #     recipe(grade~.) %>% 
 #     step_modeimpute(goout) %>% 
@@ -366,6 +379,7 @@ library(recipes)
 #     is.na() %>% 
 #     colSums()
 
+# 변수 속성 상관없이 최빈값으로 바꿔줘야할 때 
 # dat$goout[is.na(dat$goout)] <- mode(dat$goout, na.rm = T)
 ```
 
@@ -374,7 +388,7 @@ library(recipes)
 ```{r}
 dat %>% 
     recipe(grade~.) %>% 
-    step_impute_linear(goout, impute_with = imp_vars(paid, sex, freetime, dalc)) %>% 
+    step_impute_linear(goout, impute_with = imp_vars(paid, sex, freetime)) %>% 
     prep() %>% 
     juice() %>% 
     is.na() %>% 
@@ -404,10 +418,16 @@ dat %>%
 
 ## KNN을 이용한 대치법
 
+**권장하진 않는 이유**
+
+-   계산량이 많고, 이상치에 민감함
+
+-   변수 scale에 민감하며, 고차원 데이터의 경우 부정확할 수 있음
+
 ```{r}
 dat %>% 
     recipe(grade~.) %>% 
-    step_knnimpute(goout, impute_with = imp_vars(all_predictors())) %>% 
+    step_knnimpute(goout, impute_with = imp_vars(all_predictors())) %>%
     prep() %>% 
     juice() %>% 
     is.na() %>% 
@@ -415,6 +435,10 @@ dat %>%
 ```
 
 ## 최종 대치방법
+
+-   모형을 이용한 결측치 대치법은 어떤 방법을 써도 무방함
+
+-   시험에서는 regression을 이용한 대치 방법, bagged tree model의 tree 수를 적당히 지정하고 빠르게 결측치를 대치할 것을 권장함
 
 ```{r}
 dat1 <- dat %>% 
@@ -427,6 +451,14 @@ dat1 %>% is.na() %>% colSums()
 ```
 
 # Encoding 방법 {.tabset .tabset-fade}
+
+-   Label encoding
+
+-   one-hot encoding
+
+-   package : **Recipes**
+
+-   문제 : 범주형 변수 인코딩이 필요한 경우 식별, 변환 적용, 특정 인코딩 방법 선택 이유
 
 ## Label encoding
 
@@ -446,7 +478,7 @@ dat1 %>%
 
 -   Label encoding의 문제점인 수치 정보가 반영되는 문제를 해결 가능
 
--   범주형 변수 간의 다중공선성 문제가 있을 수 있음(회귀분석에서 문제가 됨)
+-   범주형 변수 간의 다중공선성 문제가 있을 수 있음(회귀분석에서 문제가 되지만 glm 패키지에서는 factor로 처리할 경우 levels 중에 하나를 제외하기 때문에 one-hot encoding 필요 없음)
 
 -   차원이 늘어남에 따라 계산량이 늘어나는 문제가 있음
 
@@ -462,9 +494,17 @@ dat1 <- dat1 %>%
 
 # Data split(데이터 분할) {.tabset .tabset-fade}
 
+-   Simple random sampling
+
+-   strata sampling
+
+-   package : **rsample(권장), caret**
+
+-   문제 : 데이터셋 분할 방법 2가지 제시, 적절한 데이터 분할 방법 적용, 선택 이유 설명
+
 ## simple random sampling
 
--   데이터를 무작위로 7:3으로 분할
+-   데이터를 무작위로 특정 비율로 분할
 
 -   범주형 변수의 class가 불균형할 때 랜덤 샘플링을 할 경우 train or test 데이터가 전체 데이터를 대표하지 못함
 
@@ -489,15 +529,18 @@ test <- testing(splits)
 
 ## strata sampling
 
--   랜덤샘플링의 해결 방안으로 class의 빈도를 고려해서 샘플링을 진행함
+-   class 불균형 문제에 대한 해결 방안으로 class의 빈도를 고려해서 샘플링을 진행함
 
 -   연속형 변수의 경우, quantile을 기준으로 bin을 나눠서 샘플링을 진행함
+
+![연속형 변수 층화 샘플링 예시](https://www.tmwr.org/figures/ames-sale-price-1.svg)
 
 ```{r}
 # caret 패키지 이용 
 library(caret)
 set.seed(1234)
 train_index <- createDataPartition(dat$sex, p = 0.7, list = F) 
+# 층화를 위해서 nominal variable을 파라미터로 사용 
 # list = FALSE avoids returning the data as a list
 
 train <- dat[train_index, ]
@@ -507,7 +550,7 @@ test <- dat[-train_index, ]
 
 # rsample 패키지 이용 
 library(rsample)
-splits <- initial_split(dat1, prop = 0.8, strata = grade)
+splits <- initial_split(dat1, prop = 0.7, strata = grade)
 train <- training(splits)
 test <- testing(splits)
 
@@ -520,6 +563,28 @@ test <- testing(splits)
 -   XGBOOST
 
 -   Random forest
+
+-   package : **caret**
+
+-   문제 : 3개 알고리즘의 공통점을 쓰고, 예측 분석에 적합한 알고리즘인지 설명. 현업에서 쓸 때 고려해야할 점 작성
+
+# Caret package
+
+caret은 머신러닝 모델링을 위한 패키지입니다. caret은 거의 대부분의 머신러닝 모델을 지원합니다. ADP 시험에서 caret을 이용하는 이유는 여러가지 모델을 caret workflow를 이용해서 한번에 처리할 수 있기 때문에 시간을 절약할 수 있습니다. 개별 패키지를 caret으로 불러와서 사용하는 것이기 때문에 개별 패키지를 이용한 결과와 차이가 없습니다.
+
+## Caret workflow
+
+caret의 workflow는 모델을 적합하는 순서와 동일합니다.
+
+1.  validation set 생성
+2.  tuning parameter 지정
+3.  train 진행
+
+**caret을 이용해서 학습할 때 주의점**
+
+1.  validation set 구성 시 적당한 fold 값 지정(3\~5)
+2.  튜닝해야할 하이퍼파라미터 지정 시 너무 많은 파라미터를 넣지 말 것
+3.  튜닝해야할 하이퍼 파라미터가 애매하면 **tuneGrid** 대신 **tuneLength** 사용
 
 ## Random forest
 
@@ -536,14 +601,19 @@ tunegrid <- expand.grid(mtry = c(1:5))
 
 rf_gridsearch <- train(grade ~ .,             
                        data = train,               
-                       method = 'rf',         
+                       method = 'rf',
+                       trControl = control, 
                        metric = 'RMSE',
-                       tuneGrid = tunegrid)
+                       tuneGrid = tunegrid, 
+                       verbose = F) 
 
 plot(varImp(rf_gridsearch, scale = F))
 
+
 pred <- predict(rf_gridsearch, newdata = test)
 print(RMSE(pred, test$grade))
+
+
 ```
 
 ```{r}
@@ -559,14 +629,13 @@ print(RMSE(pred_r, test$grade))
 
 ```{r, message=FALSE, warning=FALSE}
 library(caret)
-
 set.seed(123)
 control <- trainControl(method='repeatedcv', 
                         number=5, 
                         repeats=3, 
                         search='grid')
 
-modelLookup('xgbTree')
+modelLookup('xgbTree') # 학습해야할 하이퍼 파라미터 명칭 확인 
 
 # rf_gridsearch <- train(grade ~ .,             
 #                        data = train,               
@@ -583,16 +652,23 @@ tunegrid <- expand.grid(
   min_child_weight = 1,
   subsample = 1
 )
-
+library(tictoc)
+tic()
 xgb_gridsearch <- train(grade ~ .,             
                        data = train,               
                        method = 'xgbTree',         
                        metric = 'RMSE',
-                       tuneLength = 3)
+                       trControl = control,
+                       tuneGrid = tunegrid, 
+                       verbose = F)
+toc() # 311.22 sec 
 plot(varImp(xgb_gridsearch, scale = F))
 
 pred <- predict(xgb_gridsearch, newdata = test)
 print(RMSE(pred, test$grade))
+
+pred_r <- pred %>% round() 
+print(RMSE(pred_r, test$grade))
 
 ```
 
@@ -612,16 +688,42 @@ svm_gridsearch <- train(grade ~ .,
                        data = train,               
                        method = 'svmPoly',         
                        metric = 'RMSE',
-                       tuneLength = 3)
+                       trControl = control, 
+                       tuneLength = 3) # 전체 hyperparameter에 대한 조합의 수 
 
 # plot(varImp(svm_gridsearch)) : 분류문제일 때만 그래프 그릴 수 있음 
 
-pred <- predict(rf_gridsearch, newdata = test)
+pred <- predict(svm_gridsearch, newdata = test)
 print(RMSE(pred, test$grade))
+
+pred_r <- pred %>% round() 
+print(RMSE(pred_r, test$grade))
 
 ```
 
-# Regression {.tabset .tabset-fade}
+# Modeling  {.tabset .tabset-fade}
+
+-   Multiple regression
+
+-   Ridge regression
+
+-   LASSO regression
+
+-   ELASTIC NET regression
+
+-   문제
+
+    -   데이터를 8:2로 분할하기
+
+    -   Multiple regression 적합 후 R2, MSE 값 산출
+
+    -   Ridge regression 적합 후 R2, MSE 값 산출
+
+        -   alpha 값을 0\~1까지 0.1 단위로 모두 탐색 후 최적의 파라미터 선택
+
+    -   LASSO regression 적합 후 R2, MSE 값 산출
+
+        -   alpha 값을 0\~1까지 0.1 단위로 모두 탐색 후 최적의 파라미터 선택
 
 ## Bias, variance의 의미
 
@@ -668,20 +770,6 @@ Ridge, LASSO, ELASTIC NET의 특징
     -   변수 간 상관관계를 반영한 모형
 
     -   상관관계가 큰 모형을 동시에 선택 or 배제하는 특성이 있음
-
-## Problem
-
--   데이터를 8:2로 분할하기
-
--   Multiple regression 적합 후 R2, MSE 값 산출
-
--   Ridge regression 적합 후 R2, MSE 값 산출
-
-    -   alpha 값을 0\~1까지 0.1 단위로 모두 탐색 후 최적의 파라미터 선택
-
--   LASSO regression 적합 후 R2, MSE 값 산출
-
-    -   alpha 값을 0\~1까지 0.1 단위로 모두 탐색 후 최적의 파라미터 선택
 
 ## Data
 
@@ -792,7 +880,7 @@ print(RMSE(pred, test$medv))
 print(R2(pred, test$medv))
 ```
 
-## Elastic net
+## Elastic net regression 
 
 ```{r}
 set.seed(123)
@@ -868,12 +956,13 @@ dat %>%
 
 # 이원배치 분산분석 {.tabset .tabset-fade}
 
--   주어진 데이터에 대해서 이원배치 분산분석을 수행하고 결과 해석
+-   문제 : 주어진 데이터에 대해서 이원배치 분산분석을 수행하고 결과 해석
 
 ## 이원배치 분산분석 개념
 
 -   하나의 반응변수에 대한 두 범주형 변수의 효과를 검증하는 방법
--   예를 들면 성별과 학년에 따른 시험 점수의 차이를 통계적으로 검정하기 위해 이원배치 분산분석을 실시할 수 있음 **범주형 변수는 반드시 factor로 구성해야함**
+-   예를 들면 성별과 학년에 따른 시험 점수의 차이를 통계적으로 검정하기 위해 이원배치 분산분석을 실시할 수 있음
+-   **범주형 변수는 반드시 factor로 구성해야함**
 
 ## Hypotheses
 
@@ -912,7 +1001,7 @@ dat <- ToothGrowth
 dat %>% glimpse()
 ```
 
-## factor로 변환
+## 범주형 변수 factor로 변환
 
 ```{r}
 dat$dose <- factor(dat$dose, levels = c(0.5, 1, 2), labels = c("D0.5", "D1", "D2"))
@@ -938,7 +1027,7 @@ ggplot(dat, aes(dose, len, colour=supp)) +
   scale_y_continuous("Response")
 ```
 
-## anova
+## ANOVA
 
 ```{r}
 aov_purr <- aov(len~supp + dose, data = dat)
@@ -996,15 +1085,19 @@ ScheffeTest(aov1, conf.level = 0.95)
 
 해석방법은 위에 tukey와 동일함.
 
-## Check assumption
+## 모형 가정 확인 
 
 1.  등분산성 가정
 
-잔차의 값이 +-5 사이에서 고르게 분포함. 즉, 분산이 증가하거나 감소하는 경향이 없음. 따라서 등분산성 가정을 만족한다고 볼 수 있음.
+**그래프를 이용한 방법**
 
 ```{r}
 plot(aov1, 1)
 ```
+
+잔차의 값이 +-5 사이에서 고르게 분포함. 즉, 분산이 증가하거나 감소하는 경향이 없음. 따라서 등분산성 가정을 만족한다고 볼 수 있음
+
+**검정을 이용한 방법**
 
 ```{r}
 library(car)
@@ -1022,11 +1115,15 @@ $\alpha = 0.05$에서 p-value가 0.5281로 매우 크기 때문에 $H_0$를 기�
 
 2.  정규성 가정
 
-normal Q-Q plot에서 점들이 대부분 직선 상에 존재하기 때문에 정규성을 만족한다고 볼 수 있음
+**그래프를 이용한 방법**
 
 ```{r}
 plot(aov1, which = 2)
 ```
+
+normal Q-Q plot에서 점들이 대부분 직선 상에 존재하기 때문에 정규성을 만족한다고 볼 수 있음
+
+**검정을 이용한 방법**
 
 ```{r}
 shapiro.test(aov1$residuals)
