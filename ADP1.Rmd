@@ -657,7 +657,7 @@ Ridge, LASSO, ELASTIC NET의 특징
 
 2.  LASSO regression
 
-    -   제약식을 통해서 중요하지 않은 변수의 영향력을 감소시킴.
+    -   제약식을 통해서 중요하지 않은 변수의 영향력을 감소시킴
 
     -   Ridge regression과의 차이점은 중요하지 않은 변수에 해당하는 회귀계수 값을 0으로 만듦으로써 변수 선택 기능이 있음
 
@@ -823,7 +823,7 @@ print(R2(pred, test$medv))
 
 # Polynomial Regression {.tabset .tabset-fade}
 
--   데이터에 대한 산점도와 polynomial regression을 3차항까지 적합한 그림을 그리시오
+-   문제 : 데이터에 대한 산점도와 polynomial regression을 3차항까지 적합한 그림을 그리기
 
 **참고: 문제에 주어진 그림만 똑같이 그리면 됨**
 

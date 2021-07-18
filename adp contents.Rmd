@@ -110,9 +110,7 @@ output:
 
 # 군집분석
 
--   KNN
-
--   EM
+-   GMM using EM 
 
 -   SOM
 
