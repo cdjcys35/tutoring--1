@@ -704,7 +704,7 @@ print(RMSE(pred_r, test$grade))
 
 ```
 
-# Modeling  {.tabset .tabset-fade}
+# Modeling {.tabset .tabset-fade}
 
 -   Multiple regression
 
@@ -883,7 +883,7 @@ print(RMSE(pred, test$medv))
 print(R2(pred, test$medv))
 ```
 
-## Elastic net regression 
+## Elastic net regression
 
 ```{r}
 set.seed(123)
@@ -1088,7 +1088,7 @@ ScheffeTest(aov1, conf.level = 0.95)
 
 해석방법은 위에 tukey와 동일함.
 
-## 모형 가정 확인 
+## 모형 가정 확인
 
 1.  등분산성 가정
 
