@@ -289,7 +289,7 @@ all_data2 <- all_data %>%
 ```
 
 
-# Split train, test {.tabset .tabset-fade}
+# Split train, test 
 
 ```{r}
 train_index <- seq_len(nrow(train))
@@ -299,8 +299,10 @@ test2 <- all_data2[-train_index,]
 ```
 
 
-```{r}
+# Modeling {.tabset .tabset-fade}
 
+## rf 
+```{r}
 library(caret)
 set.seed(123)
 control <- trainControl(method='cv', 
@@ -320,5 +322,102 @@ plot(varImp(rf_gridsearch, scale = F))
 
 
 pred <- predict(rf_gridsearch, newdata = test2)
+```
+
+## XGBOOST 
+
+```{r}
+library(caret)
+set.seed(123)
+control <- trainControl(method='cv', 
+                        number=5)
+
+xgb_gridsearch <- train(count ~ .,             
+                       data = train2,               
+                       method = 'xgbTree',  
+                       trControl = control, 
+                       metric = 'RMSE',
+                       tuneLength = 5, 
+                       verbose = F) 
+
+plot(varImp(xgb_gridsearch, scale = F))
+
+pred <- predict(xgb_gridsearch, newdata = test2)
+```
+
+## SVM
+
+```{r}
+library(caret)
+set.seed(123)
+control <- trainControl(method='cv', 
+                        number=3)
+
+svm_gridsearch <- train(count ~ .,             
+                       data = train2,               
+                       method = 'svmPoly',  
+                       trControl = control, 
+                       metric = 'RMSE',
+                       tuneLength = 2, 
+                       verbose = F) 
+
+pred <- predict(svm_gridsearch, newdata = test2)
+```
+
+## LASSO regression 
+
+```{r}
+library(caret)
+set.seed(123)
+control <- trainControl(method='cv', 
+                        number=3)
+
+
+lambda <- seq(0, 1, length = 11)  
+
+lasso_grid <- expand.grid(alpha = 1, lambda = lambda) # alpha = 1 : lasso 
+
+lasso_gridsearch <- train(count ~ .,             
+                       data = train,               
+                       method = 'glmnet',         
+                       metric = 'RMSE', 
+                       trControl = control, 
+                       tuneGrid = lasso_grid
+                       )
+lasso_gridsearch
+lasso_gridsearch$bestTune
+# Model coef 
+coef(lasso_gridsearch$finalModel, lasso_gridsearch$bestTune$lambda)
+
+
+pred <- predict(lasso_gridsearch, newdata = test2)
+```
+
+## ridge regression 
+```{r}
+set.seed(123)
+control <- trainControl(method='cv', 
+                        number=3)
+
+lambda <- seq(0, 1, length = 11)
+
+ridge_grid <- expand.grid(alpha = 0, lambda = lambda) # alpha = 0 : ridge 
+
+ridge_gridsearch <- train(count ~ .,             
+                       data = train,               
+                       method = 'glmnet',         
+                       metric = 'RMSE', 
+                       trControl = control, 
+                       tuneGrid = ridge_grid
+                       )
+
+ridge_gridsearch
+ridge_gridsearch$bestTune
+
+# Model coef 
+coef(ridge_gridsearch$finalModel, ridge_gridsearch$bestTune$lambda)
+
+
+pred <- predict(ridge_gridsearch, newdata = test2)
 ```
 
