@@ -1,5 +1,5 @@
 ---
-title: "Untitled"
+title: "ADP1 실습 Regression"
 output:
   html_document:
     number_sections: true
@@ -45,36 +45,22 @@ files
 ```
 
 ```{r, message=FALSE}
-train <- fread(file.path(file_path, "train.csv"))
-test <- fread(file.path(file_path, "test.csv"))
+dat <- fread(file.path(file_path, "train.csv"))
 ```
 
 # Data overview (데이터 기본정보) {.tabset .tabset-fade}
 
-## train data
-
-```{r}
-head(train)
-```
-
-## test data
-
-```{r}
-head(test)
-test %>% 
-  summarise(across(.fns = ~sum(is.na(.))/length(.)))
-```
-
-## train, test 데이터 통합
-
-```{r}
-all_data <- bind_rows(train, test)
-```
-
 ## 변수 속성 확인
 
 ```{r}
-all_data %>% glimpse()
+head(dat)
+glimpse(dat)
+```
+
+## 결측치 확인
+
+```{r}
+dat %>% is.na() %>% colSums()
 ```
 
 # 데이터 전처리 {.tabset .tabset-fade}
@@ -82,39 +68,33 @@ all_data %>% glimpse()
 ## 변수 속성 변경
 
 ```{r}
-all_data %>% 
-    mutate_at(c('weather', 'workingday', 'holiday'), factor)
+dat <- dat %>% 
+  mutate_at(c('weather', 'workingday', 'holiday'), factor) %>% 
+  mutate(datetime = ymd_hms(datetime))
 
-all_data %>% 
-    mutate_at(vars('weather', 'workingday', 'holiday'), factor)
-
-all_data %>% 
-    mutate_at(vars(weather, workingday, holiday), factor)
-
-
-all_data$season <- factor(all_data$season, labels = c('winter', 'fall', 'summer', 'spring'))
-all_data$weather <- as.factor(all_data$weather)
-all_data$workingday <- as.factor(all_data$workingday)
-all_data$holiday <- as.factor(all_data$holiday)
+  
+dat$season <- factor(dat$season, labels = c('winter', 'fall', 'summer', 'spring'))
+#dat$weather <- as.factor(dat$weather)
+#dat$workingday <- as.factor(dat$workingday)
+#dat$holiday <- as.factor(dat$holiday)
 ```
 
 ## 날짜 변수 생성
 
 ```{r}
-all_data <- all_data %>% mutate(datetime = ymd_hms(datetime),
-                                year = year(datetime), 
-                                month = month(datetime),
-                                wday = wday(datetime),
-                                day = day(datetime), 
-                                hour = hour(datetime)) %>% 
-    select(year, month, wday, day, holiday, workingday, everything()) 
+dat <- dat %>% mutate(year = year(datetime), 
+                      month = month(datetime),
+                      wday = wday(datetime),
+                      day = day(datetime), 
+                      hour = hour(datetime)) %>% 
+  select(year, month, wday, day, holiday, workingday, everything()) 
 ```
 
 ## wday, month factor로 변환
 
 ```{r}
-all_data$wday <- factor(all_data$wday, labels = c('Sun', 'Mon', 'Tue', 'Wed', 'Thur', 'Fri', 'Sat'))
-all_data$month <- as.factor(all_data$month)
+dat$wday <- factor(dat$wday, labels = c('Sun', 'Mon', 'Tue', 'Wed', 'Thur', 'Fri', 'Sat'))
+dat$month <- as.factor(dat$month)
 ```
 
 # 일변량 데이터 시각화 {.tabset .tabset-fade}
@@ -122,7 +102,7 @@ all_data$month <- as.factor(all_data$month)
 ## count(target variable) 분포
 
 ```{r, message=FALSE, warning=FALSE}
-all_data %>% 
+dat %>% 
     ggplot(aes(x = count)) + 
     geom_histogram()
 ```
@@ -132,10 +112,10 @@ count 변수를 보면 0인 count가 많음
 ## atemp, temp 분포
 
 ```{r, warning=FALSE, message=FALSE}
-p1 <- all_data %>% 
+p1 <- dat %>% 
     ggplot(aes(x = atemp)) + 
     geom_histogram()
-p2 <- all_data %>% 
+p2 <- dat %>% 
     ggplot(aes(x = temp)) + 
     geom_histogram()
 grid.arrange(grobs = list(p1, p2), col = 2)
@@ -146,26 +126,27 @@ temp, atemp 분포는 거의 비슷함
 ## casual, registered 분포
 
 ```{r}
-all_data %>% 
+dat %>% 
   ggplot(aes(x = registered)) + 
   geom_histogram()
-all_data %>% 
+
+dat %>% 
   ggplot(aes(x = casual)) + 
   geom_histogram()
 
 
-var(all_data$registered, na.rm = T)
-mean(all_data$registered, na.rm = T)
-var(all_data$casual, na.rm = T)
-mean(all_data$casual, na.rm = T)
+var(dat$registered, na.rm = T)
+mean(dat$registered, na.rm = T)
+var(dat$casual, na.rm = T)
+mean(dat$casual, na.rm = T)
 ```
 
-train data에는 존재하지만 test 데이터에는 존재하지 않는 count variable이다. 두 변수의 분포를 보면 0의 비율이 매우 많고, 과대산포되어있는 것을 볼 수 있다.
+두 변수의 분포를 보면 0의 비율이 매우 많고, 과대산포되어있는 것을 볼 수 있다.
 
 ## 변수별 상관관계 및 분포 시각화(holiday)
 
 ```{r}
-all_data %>% 
+dat %>% 
     select(holiday, temp, humidity, windspeed, count) %>% 
     GGally::ggpairs(mapping = aes(color = holiday))
 ```
@@ -173,7 +154,7 @@ all_data %>%
 ## 변수별 상관관계 및 분포 시각화(workingday)
 
 ```{r}
-all_data %>% 
+dat %>% 
     select(workingday, temp, humidity, windspeed, count) %>% 
     GGally::ggpairs(mapping = aes(color = workingday))
 ```
@@ -183,17 +164,17 @@ all_data %>%
 ## 계절(season)에 따른 시간 vs count 그래프
 
 ```{r}
-all_data %>% 
+dat %>% 
     group_by(season, hour) %>% 
     summarise(count = sum(count, na.rm = T)) %>% 
-    ggplot(aes(x = hour, y = count, color = season)) +
+    ggplot(aes(x = hour, y = count, color = as.factor(season))) +
     geom_line(size = 1.5, alpha = 0.7)
 ```
 
 ## 날씨(weather)에 따른 시간 vs count 그래프
 
 ```{r}
-all_data %>% 
+dat %>% 
     group_by(weather, hour) %>% 
     summarise(count = sum(count, na.rm = T)) %>% 
     ggplot(aes(x = hour, y = count, color = weather)) +
@@ -203,7 +184,7 @@ all_data %>%
 ## 요일(wday)에 따른 시간 vs count 그래프
 
 ```{r}
-all_data %>% 
+dat %>% 
     group_by(wday, hour) %>% 
     summarise(count = sum(count, na.rm = T)) %>% 
     ggplot(aes(x = hour, y = count, color = wday)) +
@@ -213,7 +194,7 @@ all_data %>%
 ## 휴일 유무(holiday)에 따른 시간 vs count 그래프
 
 ```{r}
-all_data %>% 
+dat %>% 
     group_by(holiday, hour) %>% 
     summarise(count = sum(count, na.rm = T)) %>% 
     ggplot(aes(x = hour, y = count, color = holiday)) +
@@ -223,7 +204,7 @@ all_data %>%
 ## workingday에 따른 시간 vs count 그래프
 
 ```{r}
-all_data %>% 
+dat %>% 
     group_by(workingday, hour) %>% 
     summarise(count = sum(count, na.rm = T)) %>% 
     ggplot(aes(x = hour, y = count, color = workingday)) +
@@ -233,7 +214,7 @@ all_data %>%
 ## month에 따른 시간 vs count 그래프
 
 ```{r}
-all_data %>% 
+dat %>% 
     group_by(month, hour) %>% 
     summarise(count = sum(count, na.rm = T)) %>% 
     ggplot(aes(x = hour, y = count, color = month)) +
@@ -243,37 +224,73 @@ all_data %>%
 ## hour에 따른 temp vs atemp 그래프
 
 ```{r}
-a1 <- all_data %>% 
+a1 <- dat %>% 
   mutate(hour = as.factor(hour)) %>% 
   ggplot(aes(x=hour, y = registered)) + geom_boxplot()
-a2 <- all_data %>% 
+a2 <- dat %>% 
   mutate(hour = as.factor(hour)) %>% 
   ggplot(aes(x=hour, y = casual)) + geom_boxplot()
 grid.arrange(a1, a2)
 ```
 
 # 결측치 및 factor level 처리
--  humidity의 경우 0 값이 22개 존재함
--  windspeed가 0인 경우도 마찬가지로 결측치로 보고 대체함 weather의 경우 4 level의 빈도가 매우 작기 때문에 3 level과 통합
 
+-   weather의 경우 class 불균형
+-   windspeed의 경우 0의 비율이 높음
 
 ```{r}
-table(all_data$weather) # 4
-table(all_data$humidity==0) # 22 
-table(all_data$windspeed==0) # 2180
-table(all_data$casual==0) # 986
-table(all_data$registered==0) # 15
+table(dat$weather) # class 불균형 
+table(dat$windspeed==0) # 0의 비율이 높음 
 ```
 
-```{r}
-all_data %>% 
+**step_other : 범주형 변수의 level이 여러 개일 때, 하위 범주를 기타로 묶음**
+
+-   threshhold : 전체비율에서 기타로 바꿀 비율을 조정하는 값
+
+-   other : 기타로 바꿀 level 이름을 지정
+
+```{r, echo = TRUE}
+# step_other
+dat %>% 
+    select(weather) %>% 
+    table()
+
+dat %>% 
     recipe(count~.) %>% 
     step_other(weather, threshold = 0.1, other = 3) %>% 
-    step_discretize(windspeed, min_unique = 5, num_breaks = 5) %>%
     prep() %>% 
-    juice() -> all_data
+    juice() %>% 
+    select(weather) %>% 
+    table()
 ```
 
+
+**step_discretize : 연속형 변수를 이산화하는 함수**
+
+-   num_breaks : 데이터에서 breaks의 개수 지정
+
+-   min_unique : 
+
+
+```{r}
+dat %>% 
+  select(windspeed) %>% 
+  head()
+```
+
+
+```{r}
+dat %>% 
+  recipe(count~.) %>% 
+  step_discretize(windspeed, min_unique = 3, num_breaks = 5) %>%
+  prep() %>% 
+  juice() %>% 
+  select(windspeed) %>% 
+  table()
+```
+
+**step_cut: 연속형 변수의 cut 값을 지정해서 이산화하는 함수**
+ 
 # Recipe {.tabset .tabset-fade}
 
 ```{r}
@@ -288,8 +305,7 @@ all_data2 <- all_data %>%
     juice()
 ```
 
-
-# Split train, test 
+# Split train, test
 
 ```{r}
 train_index <- seq_len(nrow(train))
@@ -298,10 +314,10 @@ test2 <- all_data2[-train_index,]
 
 ```
 
-
 # Modeling {.tabset .tabset-fade}
 
-## rf 
+## rf
+
 ```{r}
 library(caret)
 set.seed(123)
@@ -324,7 +340,7 @@ plot(varImp(rf_gridsearch, scale = F))
 pred <- predict(rf_gridsearch, newdata = test2)
 ```
 
-## XGBOOST 
+## XGBOOST
 
 ```{r}
 library(caret)
@@ -364,7 +380,7 @@ svm_gridsearch <- train(count ~ .,
 pred <- predict(svm_gridsearch, newdata = test2)
 ```
 
-## LASSO regression 
+## LASSO regression
 
 ```{r}
 library(caret)
@@ -393,7 +409,8 @@ coef(lasso_gridsearch$finalModel, lasso_gridsearch$bestTune$lambda)
 pred <- predict(lasso_gridsearch, newdata = test2)
 ```
 
-## ridge regression 
+## ridge regression
+
 ```{r}
 set.seed(123)
 control <- trainControl(method='cv', 
@@ -420,4 +437,3 @@ coef(ridge_gridsearch$finalModel, ridge_gridsearch$bestTune$lambda)
 
 pred <- predict(ridge_gridsearch, newdata = test2)
 ```
-
