@@ -1,0 +1,445 @@
+---
+title: "ADP2"
+output:
+  html_document:
+    number_sections: true
+    fig_caption: true
+    toc: true
+    fig_width: 5
+    fig_height: 4
+    theme: cosmo
+    highlight: tango
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      fig.align = "center")
+```
+
+# Preparations (준비작업) {.tabset .tabset-fade}
+
+## Libraries
+
+```{r load_lib, message=FALSE, warning=FALSE, results='hide'}
+library(data.table)
+library(tidyverse)
+library(caret)
+library(recipes)
+library(GGally)
+library(janitor)
+library(lubridate)
+library(ggmosaic)
+# ggmosaic	0.2.0
+theme_set(theme_bw())
+```
+
+## Data load {.tabset .tabset-fade}
+
+```{r}
+file_path <- "./data/credit_card"
+files <- list.files(file_path)
+files
+```
+
+```{r, message=FALSE}
+dat <- fread(file.path(file_path, "train.csv"))
+dat %>% select(credit) %>% table()
+
+dat %>% 
+    mutate(credit = replace(credit, credit == 0, 1), 
+           credit = replace(credit, credit == 1, 0),
+           credit = replace(credit, credit == 2, 1)) %>% 
+    select(credit) %>% table()
+
+
+dat <- dat %>% # 이진 분류 문제로 변경 
+    mutate(credit = replace(credit, credit == 0, 1), 
+           credit = replace(credit, credit == 1, 0),
+           credit = replace(credit, credit == 2, 1))
+
+dat$credit <- factor(dat$credit, labels = c("Good", "Bad"))
+
+```
+
+# Data description
+
+-   index
+-   gender: 성별
+-   car: 차량 소유 여부
+-   reality: 부동산 소유 여부
+-   child_num: 자녀 수
+-   income_total: 연간 소득
+-   income_type: 소득 분류 ['Commercial associate', 'Working', 'State servant', 'Pensioner', 'Student']
+-   edu_type: 교육 수준 ['Higher education' ,'Secondary / secondary special', 'Incomplete higher', 'Lower secondary', 'Academic degree']
+-   family_type: 결혼 여부 ['Married', 'Civil marriage', 'Separated', 'Single / not married', 'Widow']
+-   house_type: 생활 방식 ['Municipal apartment', 'House / apartment', 'With parents', 'Co-op apartment', 'Rented apartment', 'Office apartment']
+-   DAYS_BIRTH: 출생일, 데이터 수집 당시 (0)부터 역으로 셈, 즉, -1은 데이터 수집일 하루 전에 태어났음을 의미
+-   DAYS_EMPLOYED: 업무 시작일, 데이터 수집 당시 (0)부터 역으로 셈, 즉, -1은 데이터 수집일 하루 전부터 일을 시작함을 의미. 양수 값은 고용되지 않은 상태를 의미함
+-   FLAG_MOBIL: 핸드폰 소유 여부
+-   work_phone: 업무용 전화 소유 여부
+-   phone: 전화 소유 여부
+-   email: 이메일 소유 여부
+-   occyp_type: 직업 유형
+-   family_size: 가족 규모
+-   begin_month: 신용카드 발급 월, 데이터 수집 당시 (0)부터 역으로 셈, 즉, -1은 데이터 수집일 한 달 전에 신용카드를 발급함을 의미
+
+```{r}
+dat %>% head()
+dat <- dat %>% 
+    janitor::clean_names() # 한글일 때는 주의 필요 
+
+dat %>% glimpse()
+
+```
+
+# EDA(탐색적 자료분석) {.tabset .tabset-fade}
+
+## 변수 속성 변환
+
+```{r}
+dat %>% 
+    mutate_if(is.character, as.factor) %>% 
+    mutate_at(vars('flag_mobil', 'work_phone', 'phone', 'email', 'occyp_type', 'credit'), .funs = as.factor) %>% 
+    glimpse()
+
+dat <- dat %>% 
+    mutate_if(is.character, as.factor) %>% 
+    mutate_at(vars('flag_mobil', 'work_phone', 'phone', 'email', 'occyp_type', 'credit'), .funs = as.factor)
+```
+
+## 데이터 요약통계량
+
+-   결측치 및 이상치 확인
+
+-   변수별 요약 통계량 확인
+
+```{r}
+dat %>% summary()
+```
+
+# visualization {.tabset .tabset-fade}
+
+-   반응변수 vs 설명변수 상관계수 확인
+
+-   설명변수 vs 설명변수 상관계수 확인
+
+-   변수별 분포 확인(연속형 변수의 분포의 치우침, 범주형 변수의 class 불균형 확인)
+
+-   범주형 설명변수와 반응변수 boxplot 그리기
+
+-   Package : **GGally**
+
+-   문제 : 시각화 및 EDA
+
+**여기서 주의해야할 점은 시각화에 많은 시간을 소요하면 안됩니다. 시각화 배점은 5점 정도이고, 문제에서 요구하는 것이 모호하기 때문에 필요 이상으로 쓰지 않아도 점수가 깍이지 않습니다. 따라서 형식적인 시각화 및 짧은 해석을 하고 넘어갑니다.**
+
+## income_type : 소득 분류
+
+```{r}
+ymd_rec <- dat %>% 
+    recipe(credit~.) %>% 
+    step_mutate(
+              days_birth = days_birth + 25152, # 출생일
+              days_employed = days_employed + 15713, # 업무 시작일  
+              begin_month = begin_month + 60) %>% 
+    step_mutate(
+              year_birth = round(days_birth/365), 
+              month_birth = round(days_birth/30), 
+              year_employed = round(days_employed/365),
+              month_employed = round(days_employed/30), 
+              begin_year = begin_month/12) %>% 
+    prep() %>% 
+    juice()
+
+
+ymd_rec %>% 
+  ggplot(aes(x = income_type)) + geom_bar() + 
+  aes(stringr::str_wrap(income_type, 15)) + 
+  xlab('income_type')+
+  geom_label(stat = 'count', aes(label = ..count..))
+
+ymd_rec %>% 
+  ggplot(aes(x = income_type, y = income_total)) + 
+  geom_boxplot(aes(fill = income_type)) 
+
+ymd_rec %>% 
+    filter(!is.na(income_type), !is.na(credit)) %>% 
+    ggplot()+
+    geom_mosaic(aes(x = product(income_type, credit), fill = income_type))
+```
+
+## house_type : 생활 방식
+
+co-op apartment(주택 협동조합), house apartment, municipal apartment(공공 주택), office apartment(회사), rented apartment(임대 주택), with parents
+
+```{r}
+ymd_rec %>% 
+  ggplot(aes(x = house_type)) + geom_bar() + 
+  aes(stringr::str_wrap(house_type, 15)) + 
+  xlab('house_type')+
+  geom_label(stat = 'count', aes(label = ..count..))
+
+ymd_rec %>% 
+  ggplot(aes(x = house_type, y = income_total)) + 
+  aes(stringr::str_wrap(house_type, 15)) +
+  xlab('house_type')+
+  geom_boxplot(aes(fill = house_type)) 
+  
+
+ymd_rec %>% 
+  filter(!is.na(house_type), !is.na(credit)) %>% 
+  ggplot()+geom_mosaic(aes(x = product(house_type, credit), fill = house_type))
+
+```
+
+## occupation type
+
+accountants, cleaning staff, cooking staff, core staff(정규직), drivers, high skill tech staff, HR staff, IT staff, Laborers, Low-skill Laborers, managers, medicine staff
+
+```{r}
+ymd_rec %>% 
+  ggplot(aes(x = occyp_type)) + geom_bar() + 
+  geom_label(stat = 'count', aes(label = ..count..))+
+  coord_flip()
+
+
+ymd_rec %>% 
+  filter(!is.na(occyp_type), !is.na(credit)) %>% 
+  ggplot(aes(x = occyp_type, y = income_total, fill = occyp_type)) + 
+  geom_boxplot() + 
+  coord_flip()
+
+ymd_rec %>% 
+  filter(!is.na(occyp_type), !is.na(credit)) %>% 
+  ggplot()+geom_mosaic(aes(x = product(occyp_type, credit), fill =occyp_type))
+
+```
+
+```{r}
+cols <- dat %>% 
+    select_if(is.factor) %>% 
+    colnames()
+cols
+ggpairs(dat, cols[1:5])
+ggpairs(dat, cols[c(6:11, 13)])
+
+dat %>% 
+    select_if(is.integer) %>% 
+    ggpairs()
+
+```
+
+# Data preprocessing(데이터 전처리)
+
+# Recipes
+
+```{r}
+dat2 <- dat %>% 
+    recipe(credit~.) %>%
+    step_rm(flag_mobil, index) %>% 
+    step_mutate(
+              days_birth = days_birth + 25152, # 출생일
+              days_employed = days_employed + 15713, # 업무 시작일  
+              begin_month = begin_month + 60) %>% 
+    step_mutate(
+              month_birth = round(days_birth/30), 
+              month_employed = round(days_employed/30)) %>%
+    step_mutate(
+              disc_employed = month_employed) %>%
+  
+    step_cut(disc_employed, breaks = c(407, 458, 491, 523, 12699)) %>%
+
+    step_other(income_type, occyp_type, house_type, threshold = 0.1, other = 'infreq_combined') %>% 
+    step_impute_bag(occyp_type, impute_with = imp_vars(car, reality, income_total, income_type, edu_type, house_type, family_type, family_size),  trees = 100) %>% 
+    step_normalize(all_numeric(), -all_outcomes()) %>% 
+    step_rm(days_birth, days_employed, begin_month, month_employed) %>% 
+    prep() %>% 
+    juice()
+```
+
+# Data split(데이터 분할) {.tabset .tabset-fade}
+
+## simple random sampling
+
+-   데이터를 무작위로 특정 비율로 분할
+
+-   범주형 변수의 class가 불균형할 때 랜덤 샘플링을 할 경우 train or test 데이터가 전체 데이터를 대표하지 못함
+
+-   연속형 변수의 경우 분포가 치우쳐져 있을 때 같은 문제가 발생함
+
+```{r}
+# rsample 패키지 이용 
+library(rsample)
+splits <- initial_split(dat2, prop = 0.7, strata = credit)
+train <- training(splits)
+test <- testing(splits)
+```
+
+# Modeling 
+
+# Random forest {.tabset .tabset-fade}
+
+## Model fitting 
+```{r}
+library(caret)
+
+train %>% glimpse()
+train <- train %>% 
+    mutate(credit = factor(credit, labels = make.names(levels(credit))))
+
+set.seed(123)
+control <- trainControl(method='cv', 
+                        number=5, 
+                        classProbs = T, # target이 1 or 0이 아니라 yes or no 형태여야함.  
+                        summaryFunction = twoClassSummary, # auc, sensitivity, specificity
+                        savePredictions = T
+                        )
+tunegrid <- expand.grid(mtry = c(1:5))
+
+library(tictoc)
+tic()
+library(doParallel)
+cl <- makePSOCKcluster(4)
+registerDoParallel(cl)
+rf_gridsearch <- train(credit ~ .,             
+                       data = train,               
+                       method = 'rf',  
+                       trControl = control,
+                       tuneGrid = tunegrid,
+                       metric = "ROC",
+                       verbose = F) 
+toc() # 343.98
+stopCluster(cl)
+rf_gridsearch
+
+plot(varImp(rf_gridsearch, scale = F))
+```
+
+![](https://topepo.github.io/caret/premade/cm.jpg)
+
+
+## confusion matrix 
+```{r}
+pred <- predict(rf_gridsearch, newdata = test, type = "raw")
+
+cmatrix <- caret::confusionMatrix(pred, test$credit) 
+cmatrix
+
+# confusionMatrix(pred, test$credit, positive = 'X0') 
+# positive : two class 중 어떤 class를 positive로 설정할 것인지 
+
+
+cmatrix$byClass
+
+# precision
+cmatrix$byClass["Precision"]
+
+# Recall
+cmatrix$byClass["Recall"]
+
+# F1 
+cmatrix$byClass["F1"]
+
+```
+
+## ROC curve
+
+```{r}
+library(pROC)
+pred_prob <- predict(rf_gridsearch, newdata = test, type = "prob")
+actual <- as.numeric(factor(test$credit))-1
+
+roc_result <- roc(actual, pred_prob$Bad, levels = c(0, 1), direction = "<")
+roc_result
+
+pROC::auc(roc_result)
+```
+
+
+test 데이터에서 가장 높은 특이도 + 민감도에 해당하는 cut-off value 출력
+이게 가장 쉬움 
+```{r}
+par(pty="s")
+plot(roc_result, 
+     print.thres = TRUE,
+     print.auc = TRUE, 
+     legacy.axes = T) # TRUE : x 축 1-Spec으로 표시, FALSE : Spec으로 표시 
+```
+```{r}
+dev.off()
+```
+
+
+## cut off value : class 불균형일 때 
+
+설명 추가 
+
+```{r}
+probs <- seq(0.1, 0.9, by = 0.01)
+
+ths <- thresholder(rf_gridsearch, 
+                   threshold = probs, 
+                   final = TRUE,
+                   statistics = "all")
+ths
+
+ths %>% 
+    mutate(prob = probs) %>% 
+    filter(J == max(J)) 
+# J : Youden's index : Sens + spec - 1
+# optimal cut-off : J = max(sens + spec -1)
+
+thresh_prob <- ths %>% 
+    mutate(prob = probs) %>% 
+    filter(J == max(J)) %>% 
+    pull(prob)
+
+pred_prob <- predict(rf_gridsearch, newdata = test, type = "prob")
+
+pred_cut <- as.factor(ifelse(pred_prob>0.34, "X0", "X1"))
+caret::confusionMatrix(pred_cut, test$credit)
+pred_cut %>% length()
+
+# ModelMetrics	1.2.2.2
+# yardstick 사용 x 
+
+library(ModelMetrics)
+
+# cut-off value에 따른 각 지표 값 
+ModelMetrics::sensitivity(test$credit, pred_prob$X1, cutoff = thresh_prob)
+ModelMetrics::auc(test$credit, pred_prob$X1) # auc는 따로 cut-off value 지정 x 
+```
+
+
+
+
+# Multi-classification 
+
+# Modeling 
+
+
+
+# confusion matrix 
+
+
+# cut-off value 
+
+
+# clustering 
+
+# F1-score 
+
+# visualization 
+
+
+
+
+
+
+
+
+
+
+
+
