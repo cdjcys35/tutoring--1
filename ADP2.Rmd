@@ -30,11 +30,17 @@ library(GGally)
 library(janitor)
 library(lubridate)
 library(ggmosaic)
+library(pROC)
+
 # ggmosaic	0.2.0
 theme_set(theme_bw())
 ```
 
 ## Data load {.tabset .tabset-fade}
+
+데이콘에서 진행했던 신용카드 사용자 연체 예측 ai 경진대회 데이터입니다. 원 데이터는 다중 분류 문제이지만, 먼저 이진 분류 문제로 바꿔서 진행해보겠습니다.
+
+데이터 출처 <https://www.dacon.io/competitions/official/235713/talkboard/402821/>
 
 ```{r}
 file_path <- "./data/credit_card"
@@ -131,8 +137,6 @@ dat %>% summary()
 -   Package : **GGally**
 
 -   문제 : 시각화 및 EDA
-
-**여기서 주의해야할 점은 시각화에 많은 시간을 소요하면 안됩니다. 시각화 배점은 5점 정도이고, 문제에서 요구하는 것이 모호하기 때문에 필요 이상으로 쓰지 않아도 점수가 깍이지 않습니다. 따라서 형식적인 시각화 및 짧은 해석을 하고 넘어갑니다.**
 
 ## income_type : 소득 분류
 
@@ -234,7 +238,14 @@ dat %>%
 
 # Recipes
 
+**step_cut : cut 값에 따라 연속형 변수를 이산형 변수로 변환**
+
+-   breaks : 연속형 변수의 경계값 지정
+
 ```{r}
+
+
+
 dat2 <- dat %>% 
     recipe(credit~.) %>%
     step_rm(flag_mobil, index) %>% 
@@ -251,42 +262,47 @@ dat2 <- dat %>%
     step_cut(disc_employed, breaks = c(407, 458, 491, 523, 12699)) %>%
 
     step_other(income_type, occyp_type, house_type, threshold = 0.1, other = 'infreq_combined') %>% 
-    step_impute_bag(occyp_type, impute_with = imp_vars(car, reality, income_total, income_type, edu_type, house_type, family_type, family_size),  trees = 100) %>% 
+    #step_impute_bag(occyp_type, impute_with = imp_vars(car, reality, income_total, income_type, edu_type, house_type, family_type, family_size),  trees = 100) %>% 
     step_normalize(all_numeric(), -all_outcomes()) %>% 
     step_rm(days_birth, days_employed, begin_month, month_employed) %>% 
     prep() %>% 
     juice()
 ```
 
-# Data split(데이터 분할) {.tabset .tabset-fade}
-
-## simple random sampling
-
--   데이터를 무작위로 특정 비율로 분할
-
--   범주형 변수의 class가 불균형할 때 랜덤 샘플링을 할 경우 train or test 데이터가 전체 데이터를 대표하지 못함
-
--   연속형 변수의 경우 분포가 치우쳐져 있을 때 같은 문제가 발생함
+# Data split(데이터 분할)
 
 ```{r}
-# rsample 패키지 이용 
 library(rsample)
 splits <- initial_split(dat2, prop = 0.7, strata = credit)
 train <- training(splits)
 test <- testing(splits)
 ```
 
-# Modeling 
+# Modeling
 
 # Random forest {.tabset .tabset-fade}
 
-## Model fitting 
+## Model fitting
+
+**주의할 점**
+
+target variable을 factor 처리할 때 label이 지정되어 있는지 확인해야함. label이 없으면 caret 패키지에서 confusion matrix 함수를 실행할 때 오류 발생.
+
+```{r}
+exdata <- data.frame(x = c(1:5), y = c(0, 1, 0, 1, 0))
+exdata %>% 
+  mutate(y = as.factor(y))
+
+exdata %>% 
+  mutate(y = factor(y, label = c('yes', 'no')))
+
+
+```
+
 ```{r}
 library(caret)
 
-train %>% glimpse()
-train <- train %>% 
-    mutate(credit = factor(credit, labels = make.names(levels(credit))))
+#train <- train %>% mutate(credit = factor(credit, labels = make.names(levels(credit))))
 
 set.seed(123)
 control <- trainControl(method='cv', 
@@ -318,15 +334,13 @@ plot(varImp(rf_gridsearch, scale = F))
 
 ![](https://topepo.github.io/caret/premade/cm.jpg)
 
+## confusion matrix
 
-## confusion matrix 
 ```{r}
 pred <- predict(rf_gridsearch, newdata = test, type = "raw")
 
 cmatrix <- caret::confusionMatrix(pred, test$credit) 
 cmatrix
-
-# confusionMatrix(pred, test$credit, positive = 'X0') 
 # positive : two class 중 어떤 class를 positive로 설정할 것인지 
 
 
@@ -346,7 +360,6 @@ cmatrix$byClass["F1"]
 ## ROC curve
 
 ```{r}
-library(pROC)
 pred_prob <- predict(rf_gridsearch, newdata = test, type = "prob")
 actual <- as.numeric(factor(test$credit))-1
 
@@ -356,9 +369,8 @@ roc_result
 pROC::auc(roc_result)
 ```
 
+test 데이터에서 가장 높은 특이도 + 민감도에 해당하는 cut-off value 출력 이게 가장 쉬움
 
-test 데이터에서 가장 높은 특이도 + 민감도에 해당하는 cut-off value 출력
-이게 가장 쉬움 
 ```{r}
 par(pty="s")
 plot(roc_result, 
@@ -366,14 +378,14 @@ plot(roc_result,
      print.auc = TRUE, 
      legacy.axes = T) # TRUE : x 축 1-Spec으로 표시, FALSE : Spec으로 표시 
 ```
+
 ```{r}
 dev.off()
 ```
 
+## cut off value : class 불균형일 때
 
-## cut off value : class 불균형일 때 
-
-설명 추가 
+설명 추가
 
 ```{r}
 probs <- seq(0.1, 0.9, by = 0.01)
@@ -411,35 +423,16 @@ ModelMetrics::sensitivity(test$credit, pred_prob$X1, cutoff = thresh_prob)
 ModelMetrics::auc(test$credit, pred_prob$X1) # auc는 따로 cut-off value 지정 x 
 ```
 
+# Multi-classification
 
+# Modeling
 
+# confusion matrix
 
-# Multi-classification 
+# cut-off value
 
-# Modeling 
+# clustering
 
+# F1-score
 
-
-# confusion matrix 
-
-
-# cut-off value 
-
-
-# clustering 
-
-# F1-score 
-
-# visualization 
-
-
-
-
-
-
-
-
-
-
-
-
+# visualization
