@@ -28,9 +28,9 @@ ADP 시험 때 쓸 수 있는 패키지는 현재 기준 최신 버전이 아니
 **2 page 제 21회 데이터분석 전문가(ADP) 실기시험 응시안내**
 
 ```{r load_lib, message=FALSE, warning=FALSE, results='hide'}
-
+# 패키지 구버전 저장소 따로 만들고 싶을 때 
+#.libPaths("D:/library")
 # 패키지 구버전 설치방법 
-
 # devtools::install_version("recipes", version = "0.1.15")
 # devtools::install_version("data.table", version = "1.13.4")
 # devtools::install_version("caret", version = "6.0-86")

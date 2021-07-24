@@ -31,8 +31,8 @@ library(janitor)
 library(lubridate)
 library(ggmosaic)
 library(pROC)
-
-# ggmosaic	0.2.0
+#devtools::install_version("ggmosaic", version = "0.2.0")
+#devtools::install_version("pROC", version = "1.16.2")
 theme_set(theme_bw())
 ```
 
@@ -244,8 +244,6 @@ dat %>%
 
 ```{r}
 
-
-
 dat2 <- dat %>% 
     recipe(credit~.) %>%
     step_rm(flag_mobil, index) %>% 
@@ -334,6 +332,19 @@ plot(varImp(rf_gridsearch, scale = F))
 
 ![](https://topepo.github.io/caret/premade/cm.jpg)
 
+**F1-score : 위 이미지에서** $\beta$ 값에 1을 넣은 경우에 해당함(위의 값은 $F_{\beta}$ score)
+
+**accuracy 문제점**
+
+![https://nittaku.tistory.com/295](C:/Users/uos/AppData/Local/RStudio/tmp/paste-4315E8B3.png)
+
+**F1-score**
+
+![https://nittaku.tistory.com/295](C:/Users/uos/AppData/Local/RStudio/tmp/paste-68F86EE9.png)
+
+1.  class 균형 데이터의 경우 : accuracy
+2.  class 불균형 데이터의 경우 : F1-score
+
 ## confusion matrix
 
 ```{r}
@@ -367,72 +378,179 @@ roc_result <- roc(actual, pred_prob$Bad, levels = c(0, 1), direction = "<")
 roc_result
 
 pROC::auc(roc_result)
+coords(roc_result, "best")
 ```
 
-test 데이터에서 가장 높은 특이도 + 민감도에 해당하는 cut-off value 출력 이게 가장 쉬움
+## cut off value
 
 ```{r}
 par(pty="s")
-plot(roc_result, 
+plot(roc_result,
      print.thres = TRUE,
-     print.auc = TRUE, 
-     legacy.axes = T) # TRUE : x 축 1-Spec으로 표시, FALSE : Spec으로 표시 
-```
+     print.auc = TRUE,
+     legacy.axes = T) # TRUE : x 축 1-Spec으로 표시, FALSE : Spec으로 표시
 
-```{r}
-dev.off()
-```
-
-## cut off value : class 불균형일 때
-
-설명 추가
-
-```{r}
-probs <- seq(0.1, 0.9, by = 0.01)
-
-ths <- thresholder(rf_gridsearch, 
-                   threshold = probs, 
-                   final = TRUE,
-                   statistics = "all")
-ths
-
-ths %>% 
-    mutate(prob = probs) %>% 
-    filter(J == max(J)) 
-# J : Youden's index : Sens + spec - 1
-# optimal cut-off : J = max(sens + spec -1)
-
-thresh_prob <- ths %>% 
-    mutate(prob = probs) %>% 
-    filter(J == max(J)) %>% 
-    pull(prob)
-
-pred_prob <- predict(rf_gridsearch, newdata = test, type = "prob")
-
-pred_cut <- as.factor(ifelse(pred_prob>0.34, "X0", "X1"))
-caret::confusionMatrix(pred_cut, test$credit)
-pred_cut %>% length()
-
-# ModelMetrics	1.2.2.2
-# yardstick 사용 x 
-
-library(ModelMetrics)
-
-# cut-off value에 따른 각 지표 값 
-ModelMetrics::sensitivity(test$credit, pred_prob$X1, cutoff = thresh_prob)
-ModelMetrics::auc(test$credit, pred_prob$X1) # auc는 따로 cut-off value 지정 x 
 ```
 
 # Multi-classification
 
+```{r}
+dat_m <- fread(file.path(file_path, "train.csv"))
+dat_m$credit <- factor(dat_m$credit, labels = c("Good", "Notbad", "Bad"))
+
+
+dat_m <- dat_m %>% 
+    janitor::clean_names()
+
+dat_m <- dat_m %>% 
+    mutate_if(is.character, as.factor) %>% 
+    mutate_at(vars('flag_mobil', 'work_phone', 'phone', 'email', 'occyp_type', 'credit'), .funs = as.factor)
+
+
+
+dat_m2 <- dat_m %>% 
+    recipe(credit~.) %>%
+    step_rm(flag_mobil, index) %>% 
+    step_mutate(
+              days_birth = days_birth + 25152, # 출생일
+              days_employed = days_employed + 15713, # 업무 시작일  
+              begin_month = begin_month + 60) %>% 
+    step_mutate(
+              month_birth = round(days_birth/30), 
+              month_employed = round(days_employed/30)) %>%
+    step_mutate(
+              disc_employed = month_employed) %>%
+  
+    step_cut(disc_employed, breaks = c(407, 458, 491, 523, 12699)) %>%
+
+    step_other(income_type, occyp_type, house_type, threshold = 0.1, other = 'infreq_combined') %>% 
+    #step_impute_bag(occyp_type, impute_with = imp_vars(car, reality, income_total, income_type, edu_type, house_type, family_type, family_size),  trees = 100) %>% 
+    step_normalize(all_numeric(), -all_outcomes()) %>% 
+    step_rm(days_birth, days_employed, begin_month, month_employed) %>% 
+    prep() %>% 
+    juice()
+
+library(rsample)
+splits <- initial_split(dat_m2, prop = 0.7, strata = credit)
+train2 <- training(splits)
+test2 <- testing(splits)
+
+
+```
+
 # Modeling
+
+```{r}
+library(caret)
+
+set.seed(123)
+control2 <- trainControl(method='cv', 
+                        number=5, 
+                        classProbs = T, # target이 1 or 0이 아니라 yes or no 형태여야함.  
+                        summaryFunction = multiClassSummary, # auc, sensitivity, specificity
+                        savePredictions = T
+                        )
+tunegrid <- expand.grid(mtry = c(1:5))
+
+library(tictoc)
+tic()
+library(doParallel)
+cl <- makePSOCKcluster(4)
+registerDoParallel(cl)
+rf_gridsearch2 <- train(credit ~ .,             
+                       data = train2,               
+                       method = 'rf',  
+                       trControl = control2,
+                       tuneGrid = tunegrid,
+                       metric = "logLoss",
+                       verbose = F) 
+toc() # 343.98
+stopCluster(cl)
+rf_gridsearch2
+
+plot(varImp(rf_gridsearch2, scale = F))
+
+```
 
 # confusion matrix
 
-# cut-off value
+```{r}
+pred_m <- predict(rf_gridsearch, newdata = test2, type = "raw")
 
-# clustering
+cmatrix <- caret::confusionMatrix(pred_m, test2$credit) 
+cmatrix
+# positive : two class 중 어떤 class를 positive로 설정할 것인지 
+
+
+cmatrix$byClass
+
+```
+
+## ROC curve
+
+```{r}
+pred_prob <- predict(rf_gridsearch, newdata = test2, type = "prob")
+actual <- as.numeric(factor(test2$credit))-1
+
+roc_result <- multiclass.roc(actual, pred_prob$Bad)
+roc_result
+
+pROC::auc(roc_result)
+```
+
+## cut off value
+
+```{r}
+par(pty="s")
+
+rs <- roc_result[['rocs']]
+plot.roc(rs[[1]], 
+         print.thres = TRUE,
+         print.auc = TRUE,
+         legacy.axes = T)
+sapply(2:length(rs),function(i) lines.roc(rs[[i]],col=i))
+
+```
+
+# Clustering
+
+```{r}
+train2 %>% glimpse()
+test2 <- test2 %>% 
+  select(child_num, income_total, family_size, month_birth, credit)
+test3 <- scale(test2[,-5])
+
+km_result <- kmeans(test3, centers = 3, iter.max = 1000)
+km_result$cluster <- as.factor(km_result$cluster - 1)
+
+table(test2$credit, km_result$cluster)
+
+```
 
 # F1-score
 
+```{r}
+km_result$cluster <- factor(km_result$cluster, label = c("Good", "Notbad", "Bad"))
+
+km_cm <- caret::confusionMatrix(km_result$cluster,test2$credit) 
+km_cm$byClass
+
+```
+
 # visualization
+
+```{r}
+test2 %>% 
+  mutate(cluster = km_result$cluster) %>% 
+  ggplot(aes(x = child_num, y = income_total, color = cluster)) + geom_point() + geom_jitter()
+
+library(factoextra)
+km_result$cluster <- as.numeric(km_result$cluster)
+fviz_cluster(km_result, data = test2[, -5],
+             palette = c("#2E9FDF", "#00AFBB", "#E7B800"), 
+             geom = "point",
+             ellipse.type = "convex", 
+             ggtheme = theme_bw()
+             )
+
+```
