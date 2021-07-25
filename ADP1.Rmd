@@ -132,6 +132,7 @@ dat[index, 'goout'] <- NA
 dat %>% head()
 dat %>% glimpse()
 dat %>% str()
+dat %>% names()
 
 dat <- dat %>% 
     janitor::clean_names() # 한글일 때는 주의 필요 
@@ -174,6 +175,8 @@ dat %>%
     mutate_if(is.integer, as.factor)
 
 
+
+
 ```
 
 ```{r}
@@ -201,9 +204,6 @@ dat %>% summary()
 -   변수별 분포 확인(연속형 변수의 분포의 치우침, 범주형 변수의 class 불균형 확인)
 
 -   범주형 설명변수와 반응변수 boxplot 그리기
-
-<!-- -->
-
 -   Package : **GGally**
 -   문제 : 시각화 및 EDA
 
@@ -539,7 +539,8 @@ test <- testing(splits)
 # caret 패키지 이용 
 library(caret)
 set.seed(1234)
-train_index <- createDataPartition(dat$sex, p = 0.7, list = F) 
+train_index <- createDataPartition(dat$sex, p = 0.7, list = F)
+
 # 층화를 위해서 nominal variable을 파라미터로 사용 
 # list = FALSE avoids returning the data as a list
 
@@ -592,10 +593,8 @@ caret의 workflow는 모델을 적합하는 순서와 동일합니다.
 library(caret)
 
 set.seed(123)
-control <- trainControl(method='repeatedcv', 
-                        number=5, 
-                        repeats=3, 
-                        search='grid')
+control <- trainControl(method='cv', 
+                        number=5)
 
 tunegrid <- expand.grid(mtry = c(1:5))
 
@@ -639,7 +638,7 @@ control <- trainControl(method='repeatedcv',
 
 modelLookup('xgbTree') # 학습해야할 하이퍼 파라미터 명칭 확인 
 
-# rf_gridsearch <- train(grade ~ .,             
+# xgb_gridsearch <- train(grade ~ .,             
 #                        data = train,               
 #                        method = 'xgbTree',         
 #                        metric = 'RMSE',
@@ -871,11 +870,11 @@ ridge_gridsearch <- train(medv ~ .,
                        tuneGrid = ridge_grid
                        )
 
-ridge_gridsearch
-ridge_gridsearch$bestTune
-
-# Model coef 
-coef(ridge_gridsearch$finalModel, ridge_gridsearch$bestTune$lambda)
+# ridge_gridsearch
+# ridge_gridsearch$bestTune
+# 
+# # Model coef 
+# coef(ridge_gridsearch$finalModel, ridge_gridsearch$bestTune$lambda)
 
 
 pred <- predict(ridge_gridsearch, newdata = test)
@@ -891,6 +890,7 @@ control <- trainControl(method='cv',
                         number=5)
 
 lambda <- 10^seq(-3, 3, length = 10) # lambda 값은 문제에서 범위를 지정해줌 
+lambda
 alpha <- seq(0, 1, length = 10)
 elastic_grid <- expand.grid(alpha = alpha, lambda = lambda) # alpha = 0 : ridge 
 
@@ -988,7 +988,7 @@ $$
 \begin{align*}
 &H_0 : \text{비타민 C 투여량과 기니피그의 치아 성장 사이에는 차이가 없다.} \\ 
 &H_0 : \text{비타민 C 투약 방법과 기니피그의 치아 성장 사이에는 차이가 없다.} \\ 
-&H_0 : \text{비타민 C 투약 방법과 비타민 C 투여량 사이에는 상호작용 효과가 존재한다.} \\ 
+&H_0 : \text{비타민 C 투약 방법과 비타민 C 투여량 사이에는 상호작용 효과가 존재하지 않는다.} \\ 
 \end{align*}
 $$
 

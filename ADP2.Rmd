@@ -33,6 +33,7 @@ library(ggmosaic)
 library(pROC)
 #devtools::install_version("ggmosaic", version = "0.2.0")
 #devtools::install_version("pROC", version = "1.16.2")
+#devtools::install_version("factoextra", version = "1.0.7") 
 theme_set(theme_bw())
 ```
 
@@ -336,11 +337,11 @@ plot(varImp(rf_gridsearch, scale = F))
 
 **accuracy 문제점**
 
-![https://nittaku.tistory.com/295](C:/Users/uos/AppData/Local/RStudio/tmp/paste-4315E8B3.png)
+![](images/image16.PNG)
 
 **F1-score**
 
-![https://nittaku.tistory.com/295](C:/Users/uos/AppData/Local/RStudio/tmp/paste-68F86EE9.png)
+![](images/image17.PNG)
 
 1.  class 균형 데이터의 경우 : accuracy
 2.  class 불균형 데이터의 경우 : F1-score
