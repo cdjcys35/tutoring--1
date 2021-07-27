@@ -460,14 +460,36 @@ confint(Arima(ex_7_5d_diff, order = c(2, 1, 3),
                 include.drift = T, fixed = c(0, NA, NA, NA, NA, NA))) # 추가된 모수 비유의 
 
 confint(Arima(ex_7_5d_diff, order = c(1, 1, 2), include.drift = T)) # 추가된 모수 비유의 
-confint(Arima(ex_7_5d_diff, order = c(0, 1, 3), include.drift = T)) # 추가된 모수 유의, 절편 비유의  
+confint(Arima(ex_7_5d_diff, order = c(0, 1, 3), include.drift = T)) # 추가된 모수 유의, ma2 비유의, 절편 비유의  
 ```
 
 ```{r}
-fit3 <- Arima(ex_7_5d_diff, order = c(0, 1, 3), include.drift = F)
+confint(Arima(ex_7_5d_diff, order = c(0, 1, 3), include.drift = F, 
+              fixed = c(NA, 0, NA)))
+fit3 <- Arima(ex_7_5d_diff, order = c(0, 1, 3), include.drift = F, 
+              fixed = c(NA, 0, NA))
 checkresiduals(fit3)
 ```
 
+```{r}
+confint(Arima(ex_7_5d_diff, order = c(1, 1, 3), include.drift = F, 
+              fixed = c(NA, NA, 0, NA)))
+
+confint(Arima(ex_7_5d_diff, order = c(0, 1, 4), include.drift = F, 
+              fixed = c(NA, 0, NA, NA)))
+
+```
+
+```{r}
+fit4 <- Arima(ex_7_5d_diff, order = c(1, 1, 3), include.drift = F, 
+              fixed = c(NA, NA, 0, NA))
+fit5 <- Arima(ex_7_5d_diff, order = c(0, 1, 4), include.drift = F, 
+              fixed = c(NA, 0, NA, NA))
+
+checkresiduals(fit4)
+checkresiduals(fit5)
+
+```
 
 # SARIMA {.tabset .tabset-fade}
 
