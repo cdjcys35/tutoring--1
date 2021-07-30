@@ -362,6 +362,7 @@ acf(ex_7_5d.ts)
 ggtsdisplay(ex_7_5d.ts)
 ```
 
+
 ## 차분 차수 결정
 
 -   adf test 실시
