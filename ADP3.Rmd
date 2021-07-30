@@ -92,7 +92,7 @@ X축을 시차, Y축을 표본 ACF로 표현한 그림으로 모델 인식 절�
 
 -   $\rho_k = 0$이면 표본 ACF는 점근적으로 평균은 0, 분산은 $\frac{1}{n}$인 정규분포를 따르며, 이 성질에 따라 신뢰구간이 점선으로 추가됨
 
--   표본 ACF가 점선을 벗어나 있으면 $H_0 : \rho_k = 0$을 기각할 수 있음
+-   표본 ACF가 점선을 벗어나 있으면 $H_0 : \rho_k = 0, \quad k=1,2,3,\cdots$을 기각할 수 있음
 
 -   각 시점에 대해 검정하므로 다중검정의 고질적 문제인 일종 오류가 증가하는 문제가 발생함
 
@@ -223,9 +223,7 @@ ARMA 모형에 차분(d)이 추가된 모형임
 
 -   ACF가 천천히 감소하면 차분 실시
 
--   차분을 통해 정상시계열로 만들어준 후 차수 결정
-
--   d차 차분된 자료의 ACF, PACF로 차수 결정(AR, MA, ARMA 차수 결정방법과 동일)
+-   과대차분을 통해 차분 차수 결정, ndiffs를 이용해도 됨
 
 -   ndiffs(x, alpha = 0.05, test = c('kpss', 'adf', 'pp') ): 일반 차분 차수 추정
 
@@ -238,6 +236,10 @@ ARMA 모형에 차분(d)이 추가된 모형임
     -   test = "adf" : 귀무가설 - 비정상시계열, 대립가설 - 정상시계열
 
     -   test = "pp" : 귀무가설 - 비정상시계열, 대립가설 - 정상시계열
+
+-   차분을 통해 정상시계열로 만들어준 후 차수 결정
+
+-   d차 차분된 자료의 ACF, PACF로 차수 결정(AR, MA, ARMA 차수 결정방법과 동일)
 
 ## Example
 
@@ -259,6 +261,8 @@ z_dif <- diff(z)
 plot(z_dif)
 acf(z_dif)
 pacf(z_dif)
+
+forecast::ggtsdisplay(z_dif)
 ```
 
 **과대 차분했을 경우** 정상성은 만족하지만 AR(1)모형 보다는 더 복잡한 모형으로 인식함. 모수 간결의 원칙에 따라 과대차분 모형 제외
@@ -268,6 +272,8 @@ z_diff <- diff(z, d = 2)
 plot(z_diff)
 acf(z_diff)
 pacf(z_diff)
+
+forecast::ggtsdisplay(z_diff)
 ```
 
 # 모형 적합 절차 {.tabset .tabset-fade}
@@ -302,13 +308,11 @@ pacf(z_diff)
 
 -   forecast 패키지, Arima()를 이용
 
--   Arima(x, order = c(0, 0, 0), include.mean = T, include.drift = F, fixed = Null)
+-   Arima(x, order = c(0, 0, 0), include.drift = F, fixed = Null)
 
     -   x : 시계열 자료
 
     -   order = c(0, 0, 0) : Arima(p, d, q) 차수 결정
-
-    -   include.mean : d = 0의 자료에 대하여 모형의 평균 포함 여부
 
     -   include.drift : d=1의 자료에 대하여 절편 포함 여부
 
@@ -336,7 +340,15 @@ pacf(z_diff)
 
     -   잠정모형에 모수를 추가한 모형의 유의성을 확인하는 분석 진행
 
+    -   잠정모형이 적절한 모형이라면 추가된 모수들은 유의하지 않게 나올 것이기 때문
+
+    -   잠정모형에 하나의 AR항과 MA항을 각각 추가하여 두개의 과대적합모형 설정
+
+        -   주의사항: AR항과 MA항을 동시에 추가하면 안됨
+
 ## 예측
+
+-   forecast 패키지 이용 시각화
 
 # Arima 실습 {.tabset .tabset-fade}
 
@@ -361,7 +373,6 @@ acf(ex_7_5d.ts)
 ```{r}
 ggtsdisplay(ex_7_5d.ts)
 ```
-
 
 ## 차분 차수 결정
 
@@ -388,6 +399,8 @@ ndiffs(ex_7_5d.ts, test = "adf")
 
 ```{r}
 ex_7_5d_diff <- diff(ex_7_5d.ts, d = 1)
+acf(ex_7_5d_diff)
+pacf(ex_7_5d_diff)
 ggtsdisplay(ex_7_5d_diff)
 ```
 
@@ -403,93 +416,210 @@ ggtsdisplay(ex_7_5d_diff)
 
         -   ARIMA(2, 1, 1)
 
-```{r}
-Arima(ex_7_5d_diff, order = c(0, 1, 2), include.drift = T)$aic
-Arima(ex_7_5d_diff, order = c(1, 1, 1), include.drift = T)$aic
-Arima(ex_7_5d_diff, order = c(1, 1, 2), include.drift = T)$aic
-Arima(ex_7_5d_diff, order = c(2, 1, 1), include.drift = T)$aic
-Arima(ex_7_5d_diff, order = c(2, 1, 2), include.drift = T)$aic # 후보 모형 
+## ARIMA(0, 1, 2)
 
-Arima(ex_7_5d_diff, order = c(0, 1, 2), include.drift = T)$bic # 후보 모형 
-Arima(ex_7_5d_diff, order = c(1, 1, 1), include.drift = T)$bic
-Arima(ex_7_5d_diff, order = c(1, 1, 2), include.drift = T)$bic
-Arima(ex_7_5d_diff, order = c(2, 1, 1), include.drift = T)$bic
-Arima(ex_7_5d_diff, order = c(2, 1, 2), include.drift = T)$bic
+-   절편 포함 여부 및 모수 유의성 확인
 
-fit1 <- Arima(ex_7_5d_diff, order = c(2, 1, 2), include.drift = T)  
-fit2 <- Arima(ex_7_5d_diff, order = c(0, 1, 2), include.drift = T)
-
-```
-
-
-
-## 절편 포함 여부  및 모수 유의성 확인
-
--   신뢰구간 확인 결과 두 모형 다 절편 포함
--   ARIMA(2, 1, 2)의 경우 ar1 모수 비유의 
+    -   ma2 비유의
 
 ```{r}
+fit1 <- Arima(ex_7_5d.ts, order = c(0, 1, 2), include.drift = T)
 confint(fit1)
-confint(fit2)
 ```
-## 비유의한 모수 제거 후 다시 적합 
+
+-   비유의한 모수 빼고 다시 적합
+
+    -   다른 모수 전부 유의
 
 ```{r}
-fit1.1 <- Arima(ex_7_5d_diff, order = c(2, 1, 2), 
-                include.drift = T, fixed = c(0, NA, NA, NA, NA))
+fit1.1 <- Arima(ex_7_5d.ts, order = c(0, 1, 2), include.drift = T, 
+                fixed = c(NA, 0, NA))
 confint(fit1.1)
+
+fit1.2 <- Arima(ex_7_5d.ts, order = c(0, 1, 1), include.drift = T)
+confint(fit1.2)
+
+
+# 둘다 결과는 같지만 예를 들어 MA1을 지워야할 경우 첫번째 방식은 안되고, 두번째 방식으로 해야됨 
+
 ```
 
+-   모형 검진
 
-
-## 모형 검진
-
--   두 모형 다 검정 기각 x
+    -   가정 만족
 
 ```{r}
 checkresiduals(fit1.1)
-checkresiduals(fit2)
+```
+
+-   과대적합 결과 확인
+
+    -   추가된 모수가 비유의하므로 ARIMA(0, 1, 1) 잠정 모형으로 선택
+
+```{r}
+confint(Arima(ex_7_5d.ts, order = c(0, 1, 2), include.drift = T))
+confint(Arima(ex_7_5d.ts, order = c(1, 1, 1), include.drift = T))
 
 ```
 
-## 과대 적합
+## aic, bic로 후보모형 선택
+
+-   AIC & BIC 기준 : ARIMA(2, 1, 1)
 
 ```{r}
-confint(Arima(ex_7_5d_diff, order = c(3, 1, 2), 
-                include.drift = T, fixed = c(0, NA, NA, NA, NA, NA))) # 추가된 모수 비유의 
-confint(Arima(ex_7_5d_diff, order = c(2, 1, 3), 
-                include.drift = T, fixed = c(0, NA, NA, NA, NA, NA))) # 추가된 모수 비유의 
+Arima(ex_7_5d.ts, order = c(1, 1, 1), include.drift = T)$aic
+Arima(ex_7_5d.ts, order = c(1, 1, 2), include.drift = T)$aic
+Arima(ex_7_5d.ts, order = c(2, 1, 1), include.drift = T)$aic # 후보 모형
+Arima(ex_7_5d.ts, order = c(2, 1, 2), include.drift = T)$aic  
 
-confint(Arima(ex_7_5d_diff, order = c(1, 1, 2), include.drift = T)) # 추가된 모수 비유의 
-confint(Arima(ex_7_5d_diff, order = c(0, 1, 3), include.drift = T)) # 추가된 모수 유의, ma2 비유의, 절편 비유의  
+Arima(ex_7_5d.ts, order = c(1, 1, 1), include.drift = T)$bic
+Arima(ex_7_5d.ts, order = c(1, 1, 2), include.drift = T)$bic
+Arima(ex_7_5d.ts, order = c(2, 1, 1), include.drift = T)$bic # 후보 모형 
+Arima(ex_7_5d.ts, order = c(2, 1, 2), include.drift = T)$bic  
+
+fit2 <- Arima(ex_7_5d.ts, order = c(2, 1, 1), include.drift = T)  
+
 ```
 
+## ARIMA(2, 1, 1)
+
+-   절편 포함 여부 및 모수 유의성 확인
+
+    -   ar1 비유의
+
 ```{r}
-confint(Arima(ex_7_5d_diff, order = c(0, 1, 3), include.drift = F, 
-              fixed = c(NA, 0, NA)))
-fit3 <- Arima(ex_7_5d_diff, order = c(0, 1, 3), include.drift = F, 
-              fixed = c(NA, 0, NA))
+confint(fit2)
+```
+
+-   비유의한 모수 제외 후 다시 적합
+
+    -   다른 모수 전부 유의
+
+```{r}
+fit2.1 <- Arima(ex_7_5d.ts, order = c(2, 1, 1), include.drift = T, 
+                fixed = c(0, NA, NA, NA))
+confint(fit2.1)
+```
+
+-   모형 검진
+
+    -   가정 만족
+
+```{r}
+checkresiduals(fit2.1)
+
+```
+
+-   과대적합 결과 확인
+
+    -   추가된 모수가 비유의하므로 ARIMA(2, 1, 1) 잠정 모형으로 선택
+
+```{r}
+confint(Arima(ex_7_5d.ts, order = c(3, 1, 1), include.drift = T, 
+              fixed = c(0, NA, NA, NA, NA))) # ar3 비유의 
+
+confint(Arima(ex_7_5d.ts, order = c(2, 1, 2), include.drift = T, 
+              fixed = c(0, NA, NA, NA, NA))) # ma2 비유의 
+
+```
+
+## Auto.arima
+
+-   auto.arima()
+
+    -   aic를 최소로하는 모형 탐색이 default
+
+    -   bic를 최소로 하는 모형을 탐색하고자 하는 경우 ( ic = "bic) 추가
+
+-   ARIMA(0, 1, 3) 잠정 모형 선택
+
+```{r}
+auto.arima(ex_7_5d.ts)
+auto.arima(ex_7_5d.ts, ic = "bic")
+
+fit3 <- Arima(ex_7_5d.ts, order = c(0, 1, 3), include.drift = T)
+
+```
+
+## ARIMA(0, 1, 3)
+
+-   절편 포함 여부 및 모수 유의성 확인
+
+    -   모든 모수 유의
+
+```{r}
+confint(fit3)
+```
+
+-   모형 검진
+
+    -   가정 만족
+
+```{r}
 checkresiduals(fit3)
 ```
 
-```{r}
-confint(Arima(ex_7_5d_diff, order = c(1, 1, 3), include.drift = F, 
-              fixed = c(NA, NA, 0, NA)))
+-   과대적합 결과 확인
 
-confint(Arima(ex_7_5d_diff, order = c(0, 1, 4), include.drift = F, 
-              fixed = c(NA, 0, NA, NA)))
+    -   ARIMA(1, 1, 3)의 경우 추가된 모수 유의, ma2 비유의, 추가분석 필요
+    -   ARIMA(0, 1, 4)의 경우 추가된 모수 비유의
+
+```{r}
+confint(Arima(ex_7_5d.ts, order = c(1, 1, 3), include.drift = T)) 
+confint(Arima(ex_7_5d.ts, order = c(0, 1, 4), include.drift = T))
 
 ```
 
+## ARIMA(1, 1, 3), ma2 = 0
+
+-   절편 포함 여부 및 모수 유의성 확인
+
+    -   모든 모수 유의
+
+    ```{r}
+    fit4 <- Arima(ex_7_5d.ts, order = c(1, 1, 3), include.drift = T, 
+          fixed = c(NA, NA, 0, NA, NA))
+    confint(fit4)
+    ```
+
+-   모형 검진
+
+    -   가정 만족
+
 ```{r}
-fit4 <- Arima(ex_7_5d_diff, order = c(1, 1, 3), include.drift = F, 
-              fixed = c(NA, NA, 0, NA))
-fit5 <- Arima(ex_7_5d_diff, order = c(0, 1, 4), include.drift = F, 
-              fixed = c(NA, 0, NA, NA))
-
 checkresiduals(fit4)
-checkresiduals(fit5)
 
+```
+
+-   과대적합 결과 확인
+
+    -   추가된 모수 비유의
+    -   ARIMA(1, 1, 3), ma2 = 0 모형 잠정모형으로 선택
+
+    ```{r}
+    confint(Arima(ex_7_5d.ts, order = c(2, 1, 3), include.drift = T, 
+          fixed = c(NA, NA, NA, 0, NA, NA)))
+
+    confint(Arima(ex_7_5d.ts, order = c(1, 1, 4), include.drift = T, 
+          fixed = c(NA, NA, 0, NA, NA, NA)))
+
+    ```
+
+    ## aic, bic를 비교해서 최종 후보모형 선택
+
+-   ARIMA(1, 1, 3) 모형 최종 모형으로 선택
+
+```{r}
+c(fit1.1$aic, fit2.1$aic, fit4$aic)
+c(fit1.1$aicc, fit2.1$aicc, fit4$aicc)
+c(fit1.1$bic, fit2.1$bic, fit4$bic)
+```
+
+## 예측
+
+```{r}
+summary(forecast(fit4))
+plot(forecast(fit4))
 ```
 
 # SARIMA {.tabset .tabset-fade}
@@ -503,6 +633,15 @@ ARIMA 모형에 계절 요소가 반영된 모형
 
 -   ACF : 계절 주기 12의 배수에 해당하는 시차 12, 24, 36, ..에 따라 지수적으로 감소
 -   PACF : 시차 12에서만 값을 갖고 그 외의 시차는 0으로 절단
+
+```{r}
+library(forecast)
+model <- Arima(ts(rnorm(100),freq=12), order=c(0,0,0), seasonal=c(1,0,0),
+             fixed=c(Phi=0.8, Theta=-0.8))
+foo <- simulate(model, nsim=1000)
+
+ggtsdisplay(foo)
+```
 
 ## MA(1)\_12 : ARIMA(0, 0, 0)(0, 0, 1)\_12
 
@@ -525,9 +664,497 @@ ARIMA 모형에 계절 요소가 반영된 모형
 
 비계절형 ARIMA 요소, 계절형 ARIMA 요소를 모두 갖고 있는 모형
 
-# Time series regression
+![](images/image_sarima-03.jpg)
 
-내용 추가
+**모형 적합 순서**
+
+1.  차분 차수 결정
+
+    -   일반 차분 실시 : ACF가 시차 1, 2, ...에서 매우 천천히 감소하는 경우
+
+    -   계절 차분 실시 : ACF가 시차 s, 2s, ... 에서 매우 천천히 감소하는 경우
+
+    -   일반적인 경우 d + D는 2이하로 함
+
+    -   ndiffs(x) : 일반 차분 차수 추정
+
+    -   nsdiffs(x, m = 계절 주기) : 계절차분 차수 추정
+
+2.  AR(p, P), MA(q, Q) 차수 결정
+
+    -   비계절형 차수 p, q : ACF, PACF를 이용한 일반적인 모형 인식 방법 사용
+
+    -   계절형 차수 P, Q : ACF, PACF에서 시차 s, 2s, 3s, ...을 대상으로 인식
+
+3.  절편 포함 여부 결정
+
+    -   이전과 동일하게 신뢰구간을 이용해서 절편 포함 여부 결정
+
+    -   2번 차분을 한 경우 절편은 모형에 포함 x
+
+# SARIMA 실습 {.tabset .tabset-fade}
+
+1984.1 \~ 1988.12 백화점 매출액 arima 모형 적합하고 12 선행 시차에 대해 예측 실시
+
+## 시계열 그림으로 정상성 확인
+
+-   분산 증가
+-   로그 변환 필요
+-   계절성이 뚜렷함
+
+```{r}
+depart <- scan("data/timeseries/depart.txt")
+depart.ts <- ts(depart, start = c(1984), frequency = 12)
+plot(depart.ts)
+```
+
+## 로그 변환
+
+```{r}
+lndepart <- log(depart.ts)
+plot(lndepart)
+
+```
+
+## Seasonal plot
+
+-   계절성이 뚜렷함
+
+```{r}
+library(forecast) 
+ggseasonplot(lndepart) 
+ggseasonplot(lndepart,polar=TRUE)
+```
+
+## 차분 차수 확인
+
+-   시계열 그림은 차분이 필요해보임
+-   acf는 차분의 필요성이 명확하지 않음
+
+```{r}
+Acf(lndepart, lag.max = 48)
+
+ndiffs(lndepart)
+nsdiffs(lndepart)
+```
+
+**d=1의 경우**
+
+추가적인 계절 차분이 필요해보임
+
+```{r}
+lndepart_1 <- diff(lndepart)
+ggtsdisplay(lndepart_1,lag.max=48)
+```
+
+**D=1의 경우**
+
+-   추세는 계절 차분만으로도 해결되는 경우가 있음
+-   이 경우 추가 일반 차분 실시
+
+```{r}
+lndepart_12 <- diff(lndepart,lag=12)
+ggtsdisplay(lndepart_12,lag.max=48)
+```
+
+**d=1, D=1의 경우** - 정상성 확보 - 최적의 차분 : d = 1, D = 1
+
+```{r}
+lndepart_1_12 <- diff(lndepart_1,lag=12)
+ggtsdisplay(lndepart_1_12,lag.max=48)
+```
+
+## 모형 인식
+
+-   acf 1차 절단, pacf 감소 : p = 0, q = 1
+-   acf 감소, pacf 2차 절단 : p = 2, q = 0
+-   계절 요소 12, 24, 36, 48 시차에서 모두 비유의적 : P = 0, Q = 0
+
+```{r}
+ggtsdisplay(lndepart_1_12, lag.max = 48)
+
+```
+
+## ARIMA(0, 1, 1)(0, 1, 0)\_12
+
+```{r}
+fit1 <- Arima(lndepart, order=c(0,1,1), seasonal=list(order=c(0,1,0),period=12))
+confint(fit1) # 모든 모수 유의 
+checkresiduals(fit1) # 모형 가정 만족 
+```
+
+**과대적합**
+
+-   과대적합은 비계절형 모수에만 적용
+-   추가된 모수 모두 비유의하므로 ARIMA(0, 1, 1)(0, 1, 0)\_12 예측 모형으로 선택
+
+```{r}
+confint(Arima(lndepart,order=c(1,1,1), seasonal=list(order=c(0,1,0),period=12)))
+confint(Arima(lndepart,order=c(0,1,2), seasonal=list(order=c(0,1,0),period=12)))
+```
+
+## ARIMA(2, 1, 0)(0, 1, 0)\_12
+
+```{r}
+fit2 <- Arima(lndepart,order=c(2,1,0), seasonal=list(order=c(0,1,0),period=12))
+confint(fit2) # 모든 모수 유의 
+checkresiduals(fit2) # 가정 만족 
+```
+
+**과대 적합**
+
+-   추가된 모수 비유의
+-   ARIMA(2, 1, 0)(0, 1, 0)\_12 잠정모형으로 선택
+
+```{r}
+confint(Arima(lndepart,order=c(3,1,0), seasonal=list(order=c(0,1,0),period=12)))
+confint(Arima(lndepart,order=c(2,1,1), seasonal=list(order=c(0,1,0),period=12)))
+```
+
+## auto.arima
+
+```{r}
+fit3 <- auto.arima(lndepart, d = 1, D = 1)
+fit3
+confint(fit3)
+checkresiduals(fit3)
+```
+
+**과대 적합**
+
+-   추가된 모수 비유의
+-   ARIMA(0, 1, 1)(0, 1, 1)\_12 잠정 모형으로 선택
+
+```{r}
+confint(Arima(lndepart,order=c(1,1,1), seasonal=list(order=c(0,1,1),period=12)))
+confint(Arima(lndepart,order=c(0,1,2), seasonal=list(order=c(0,1,1),period=12)))
+
+```
+
+## AIC, BIC 비교
+
+-   최종 모형 : ARIMA(0,1,1)(0,1,1)[12]
+
+```{r}
+c(fit1$aic, fit2$aic, fit3$aic)
+c(fit1$bic, fit2$bic, fit3$bic)
+# 최종 모형 fit3
+```
+
+## 원자료에 대한 예측
+
+-   함수 Arima()에 lambda를 이용
+-   boxcox 변환 모수인 lambda를 지정하면 자료 변환 후 모형 적합
+-   로그 변환 : lambda = 0
+-   fit3_1과 fit3의 결과는 동일
+-   fit3_1 객체를 forecast에 적용시키면 원자료 크기로 예측 실시
+
+```{r}
+fit3_1 <- Arima(depart.ts,order=c(0,1,1), seasonal=list(order=c(0,1,1), period=12),
+                lambda=0)
+fit3_1
+fit3
+```
+
+```{r}
+forecast(fit3_1, h=12, level=95)
+plot(forecast(fit3_1, h=12, level=95))
+summary(forecast(fit3_1,h=12,level=95))
+```
+
+# Time series regression {.tabset .tabset-fade}
+
+```{r}
+tour <- scan('data/timeseries/tourist.txt')
+tour.ts <- ts(tour, start = 1981, frequency = 12)
+plot(tour.ts)
+
+```
+
+## 회귀분석 개요
+
+-   추세 및 계절 변동이 비교적 규칙적인 경우 추세와 계절 변동을 회귀모형으로 설명
+
+-   일반 화귀모형은 오차의 독립성을 가정함
+
+-   시계열 자료 특성상 서로 독립인 오차를 가정하는 것은 불가능
+
+-   오차 사이의 상관관계, 즉 자기상관을 설명하기 위한 추후 조치가 필요
+
+**추세 성분만 있는 모형**
+
+$Z_t = \beta_0 + \beta_1t + \cdots + \beta_pt^p + \epsilon_t$
+
+**계절 성분만 있는 모형**
+
+$Z_t = \sum_{i = 1}^s \beta_iD_{t,i} + \epsilon_t, \quad D_{t,i} = 1, \, t=i(\text{mod s})$
+
+**example**
+
+-   계절 성분 주기 : s
+-   월별 자료(s = 12)에 12개 지시변수 사용
+-   $\beta_i$ : i 월의 효과
+
+![](images/tsreg1-01.PNG)
+
+**1차 추세와 계절 성분이 함께 있는 모형**
+
+$Z_t = \beta_1t + \sum_{i = 1}^{s+1} \beta_iD_{t,i} + \epsilon_t, \quad D_{t,i} = 1, \, t=i(\text{mod s})$
+
+-   $\beta_i$ : i월의 평균
+-   2차 or 3차 추세도 계수만 추가됨
+-   절편 $\beta_0$가 제거된 모형 
+-   절편을 포함하려면 지시변수를 s-1 개 사용해야함
+
+**시계열 자료와 같이 오차가 서로 독립이 아닌 경우의 모형**
+
+$Z_t = \beta_1t + \sum_{i=2}^{s+1} \beta_iD_{t,i} + \epsilon_t, \quad \epsilon_t \sim ARMA(p,q)$
+
+## 모형 가정 확인
+
+-   잔차 시계열 그림
+
+-   잔차 Q-QPLOT or 히스토그램
+
+-   잔차
+
+    -   ACF
+
+    -   Ljung Box test
+
+    -   Durbin-watson test : 오차항의 1차 자기상관 존재 여부에 대한 통계적 검정 (Ljung box test가 더 포괄적이므로 생략)
+
+# Time series regression 실습 {.tabset .tabset-fade}
+
+-   1960\~1995 우리나라 총 인구(연도별 자료)
+-   만명 단위로 분석
+
+```{r}
+pop <- scan('data/timeseries/pop.txt')
+pop <- round(pop/10000)
+pop.ts <- ts(pop, start = 1960, freq = 1)
+plot(pop.ts, ylab = "population")
+```
+
+## 1차 추세 모형 적합
+
+**변수 t 생성**
+
+```{r}
+Time <- time(pop.ts)
+fit1 <- lm(pop.ts~Time)
+summary(fit1)
+```
+
+## 잔차 분석
+
+-   2차 추세 형태로 보임
+
+```{r}
+checkresiduals(fit1)
+```
+
+## 2차 추세모형 적합
+
+-   분산 증가
+-   로그 변환 필요
+
+```{r}
+fit2 <- lm(pop.ts ~ Time + I(Time^2))
+summary(fit2)
+checkresiduals(fit2)
+```
+
+## 로그 변환 후 2차 추세모형 적합
+
+-   잔차 일정기간 양의 값, 일정기간 음의 값
+-   오차가 독립이 아니므로 오차에 대한 모형 필요
+-   오차에 대한 모형 ARMA 모형 식별
+
+```{r}
+fit3 <- lm(log(pop.ts)~Time + I(Time^2))
+summary(fit3)
+checkresiduals(fit3)
+```
+
+## 오차 모형 식별
+
+-   AR(1) 식별
+
+```{r}
+resid <- ts(fit3$resid, start = 1960)
+ggtsdisplay(resid)
+```
+
+```{r}
+fit_r1 <- Arima(resid, order = c(1, 0, 0), include.mean = F)
+checkresiduals(fit_r1) # 가정 위반 
+```
+
+## 과대 적합
+
+```{r}
+fit_r2 <- Arima(resid, order = c(2, 0, 0), include.mean = F)
+fit_r3 <- Arima(resid, order = c(1, 0, 1), include.mean = F)
+
+confint(fit_r2) # 추가된 모수 유의 
+confint(fit_r3) # 추가된 모수 유의 
+
+```
+
+```{r}
+checkresiduals(fit_r2) # AR(2) 가정 만족 
+checkresiduals(fit_r3) # 가정 위반 
+
+```
+
+```{r}
+confint(Arima(resid, order = c(2, 0, 1), include.mean = F)) # 추가된 모수 비유의 
+confint(Arima(resid, order = c(3, 0, 0), include.mean = F)) # 추가된 모수 비유의 
+```
+
+-   AR(2) 모형 잠정 모형으로 선택
+
+## 추세모형 + ar(2) 모형 결합
+
+-   Arima() : xreg = 에 행렬 X에서 1로 이루어진 첫번째 열을 제외한 행렬을 지정
+-   model.matrix에 추세모형을 입력해서 X 행렬 추출
+
+```{r}
+fit_x <- model.matrix(fit3)[,-1]
+f1 <- Arima(pop.ts, order = c(2, 0, 0), xreg = fit_x, lambda = 0)
+f1
+
+```
+
+```{r}
+checkresiduals(f1) # 가정 만족 
+
+```
+
+## 예측
+
+```{r}
+new_x <- time(ts(start = 1996, end = 2000))
+fore_1 <- forecast(f1, xreg = cbind(new_x, new_x^2)) # xreg = 모델의 x인 t, t^2를 만듦 
+plot(fore_1)
+accuracy(fore_1)
+```
+
+# 계절 추세 ARMA 오차 회귀모형 {.tabset .tabset-fade}
+
+```{r}
+depart <- scan("data/timeseries/depart.txt")
+depart.ts <- ts(depart, start = c(1984), frequency = 12)
+```
+
+## time series plot
+
+-   뚜렷한 추세 및 계절 성분
+-   분산 증가
+
+```{r}
+plot(depart.ts)
+```
+
+## 분산 안정화 변환
+
+```{r}
+lndepart <- log(depart.ts)
+plot(lndepart)
+```
+
+## 계절 추세 모형 적합
+
+```{r}
+Time <- time(lndepart) # 추세 변수 생성 
+Month <- cycle(lndepart) # 계절 추세 변수 생성 
+```
+
+```{r}
+fit1 <- lm(lndepart ~ Time + factor(Month) + 0) # 0 : 절편 제거 
+summary(fit1) # 지시변수 중 비유의한 것 있어도 제외 x 
+```
+
+## 가정 확인
+
+-   오차에 대한 모형 필요
+
+```{r}
+checkresiduals(fit1)
+
+```
+
+## 오차 모형 식별
+
+-   AR(3) 모형 식별
+
+```{r}
+resid <- fit1$residuals
+ggtsdisplay(resid) 
+
+```
+
+## 오차 모형 추정
+
+```{r}
+confint(Arima(resid, order = c(3, 0, 0), include.mean = F)) # ar2 비유의 
+
+fit_r1 <- Arima(resid, order = c(3, 0, 0), include.mean = F, 
+                fixed = c(NA, 0, NA))
+confint(fit_r1)
+checkresiduals(fit_r1, lag.max = 48)
+
+```
+
+## 과대적합
+
+-   최종모형 : ar2가 비유의한 AR(3)
+
+```{r}
+confint(Arima(resid, order = c(3, 0, 1), include.mean = F, fixed = c(NA, 0, NA, NA)))
+confint(Arima(resid, order = c(4, 0, 0), include.mean = F, fixed = c(NA, 0, NA, NA)))
+
+```
+
+## 계절추세모형과 AR(3) 모형 결합
+
+-   fit1 : 절편 없는 모형
+-   fit1 + ar2가 비유의적인 AR(3)모형의 모수 : ar1, ar2, ar3, t, D1, ... D12
+
+```{r}
+fit_x <- model.matrix(fit1)
+fit2 <- Arima(depart.ts, order = c(3, 0, 0), xreg = fit_x, include.mean = F,
+              fixed = c(NA, 0, NA, rep(NA, 13)), lambda = 0)
+coef(fit2)
+confint(fit2) # 모든 모수 유의 
+
+```
+
+## 최종모형 잔차분석
+
+-   검정결과: 독립가설 기각
+-   이유: 최종 모형에 포하된 변수가 많아서 검정 자유도가 너무 작아서 발생한 것으로 판단
+-   잔차의 ACF : 독립성에 큰 문제가 없는 것으로 보임
+
+```{r}
+checkresiduals(fit2, lag.max = 48)
+
+```
+
+## 예측
+
+-   예측 기간에 해당되는 변수 t와 지시변수 $D_1, \cdots, D_12$로 행렬 구성
+
+```{r}
+new_t <- time(ts(start = c(1989,1), end = c(1989, 12), freq =12))
+new_x <- cbind(new_t, diag(rep(1, 12)))
+fore_2 <- forecast(fit2, xreg = new_x)
+plot(fore_2)
+
+accuracy(fore_2)
+
+```
 
 # 시계열 그래프 그리는 방법 {.tabset .tabset-fade}
 
@@ -718,6 +1345,10 @@ summary(forecast(fit))
 
 ## Load data
 
+-   우리나라에 입국한 관광객 수
+-   train : 1981.1 \~ 1991.12
+-   test : 1992.1 \~ 1992.12
+
 ```{r}
 tour <- scan('data/timeseries/tourist.txt')
 tour.ts <- ts(tour, start = 1981, frequency = 12)
@@ -792,28 +1423,6 @@ Acf(tour_1_12, lag.max = 48)
 Pacf(tour_1_12, lag.max = 48)
 ```
 
-비계절형 요소
-
--   ACF 절단, PACF 감소 : p = 0, q = 1
--   ACF 감소, PACF 절단 : p = 2, q = 0
-
-계절형 확인 방법
-
-$AR(1)_{12}$
-
--   ACF : 계절주기 12의 배수에 해당하는 시차에 따라 지수적으로 감소
--   PACF : 시차 12에서만 값을 갖고 그 이외의 사차에서는 0
-
-$MA(1)_{12}$
-
--   ACF : 시차 12에서만 값을 갖고 그 이외의 사차에서는 0
--   PACF : 계절주기 12의 배수에 해당하는 시차에 따라 지수적으로 감소
-
-$ARMA(1, 1)_{12}$
-
--   ACF : 12시차 이후부터 계절주기 12의 배수의 해당되는 시차에 따라 지수적으로 감소
--   PACF : 12시차 이후부터 계절주기 12의 배수의 해당되는 시차에 따라 지수적으로 감소
-
 계절형 확인
 
 -   ACF 12차 근처에서만 유의적 : P = 0, Q = 1
@@ -835,16 +1444,16 @@ $ARMA(1, 1)_{12}$
 
 -   $ARIMA(2, 1, 0)(1, 1, 0)_{12}$
 
-$ARIMA(0, 1, 1)(0, 1, 1)_{12}$
+## $ARIMA(0, 1, 1)(0, 1, 1)_{12}$
 
 ```{r}
 fit1 <- Arima(lntour, order = c(0, 1, 1), 
               seasonal = list(order = c(0, 1, 1), period = 12))
-
+confint(fit1) # 모든 모수 유의 
 checkresiduals(fit1)
 ```
 
-## 과대 적합 확인
+**과대 적합 확인**
 
 $ARIMA(0, 1, 1)(0, 1, 1)_{12}$
 
@@ -854,10 +1463,15 @@ fit1_1 <- Arima(lntour, order = c(1, 1, 1),
 
 fit1_2 <- Arima(lntour, order = c(0, 1, 2), 
               seasonal = list(order = c(0, 1, 1), period = 12))
-confint(fit1)
+
 confint(fit1_1) # 추가된 모수 유의적 
 confint(fit1_2) # 추가된 모수 유의적
 
+```
+
+-   $ARIMA(1, 1, 1)(0, 1, 1)_{12}$, $ARIMA(0, 1, 2)(0, 1, 1)_{12}$ 잠정 모형으로 선택
+
+```{r}
 checkresiduals(fit1_1)
 checkresiduals(fit1_2)
 
@@ -871,12 +1485,11 @@ confint(Arima(lntour, order = c(2, 1, 1),
 confint(Arima(lntour, order = c(0, 1, 3), 
               seasonal = list(order = c(0, 1, 1), period = 12))) # 추가된 모수 비유의 
 
-
 # fit1_1, fit1_2 예측에 사용 가능 
 
 ```
 
-$ARIMA(0, 1, 1)(1, 1, 0)_{12}$
+## $ARIMA(0, 1, 1)(1, 1, 0)_{12}$
 
 ```{r}
 fit2 <- Arima(lntour, order = c(0, 1, 1), 
@@ -885,7 +1498,7 @@ fit2 <- Arima(lntour, order = c(0, 1, 1),
 checkresiduals(fit2) # 백색잡음 오차 가정 위반 
 ```
 
-## 과대적합
+**과대 적합**
 
 $ARIMA(0, 1, 1)(1, 1, 0)_{12}$
 
@@ -897,12 +1510,12 @@ fit2_2 <- Arima(lntour, order = c(0, 1, 2),
 confint(fit2_1) # 추가된 모수 유의 
 confint(fit2_2) # 추가된 모수 유의
 
-checkresiduals(fit2_1)
-checkresiduals(fit2_2)
+checkresiduals(fit2_1) # 가정 만족
+checkresiduals(fit2_2) # 가정 만족 
 
 ```
 
-## 추가 과대적합
+**추가 과대 적합**
 
 $ARIMA(1, 1, 1)(1, 1, 0)_{12}$, $ARIMA(0, 1, 2)(1, 1, 0)_{12}$
 
@@ -919,18 +1532,20 @@ confint(Arima(lntour, order = c(0, 1, 3),
 # fit2_1, fit2_2 잠정 후보 모형 
 ```
 
-$ARIMA(2, 1, 0)(0, 1, 1)_{12}$
+-   $ARIMA(1, 1, 1)(1, 1, 0)_{12}$, $ARIMA(0, 1, 2)(1, 1, 0)_{12}$ 잠정 모형으로 선택
+
+## $ARIMA(2, 1, 0)(0, 1, 1)_{12}$
 
 ```{r}
 fit3 <- Arima(lntour, order = c(2, 1, 0), 
               seasonal = list(order = c(0, 1, 1), period = 12))
 
-checkresiduals(fit3) # 백색잡음 오차 가정 위반 
+checkresiduals(fit3) 
 ```
 
-## 과대적합
+**과대 적합**
 
-$ARIMA(2, 1, 0)(0, 1, 1)_{12}$
+-   $ARIMA(2, 1, 0)(0, 1, 1)_{12}$ 잠정 모형으로 선택
 
 ```{r}
 confint(Arima(lntour, order = c(2, 1, 1), 
@@ -942,18 +1557,18 @@ confint(Arima(lntour, order = c(3, 1, 0),
 
 ```
 
-$ARIMA(2, 1, 0)(1, 1, 0)_{12}$
+## $ARIMA(2, 1, 0)(1, 1, 0)_{12}$
 
 ```{r}
 fit4 <- Arima(lntour, order = c(2, 1, 0), 
               seasonal = list(order = c(1, 1, 0), period = 12))
 
-checkresiduals(fit4) # 백색잡음 오차 가정 위반 
+checkresiduals(fit4) 
 ```
 
 ## 과대 적합
 
-$ARIMA(2, 1, 0)(1, 1, 0)_{12}$
+-   $ARIMA(2, 1, 0)(1, 1, 0)_{12}$ 잠정 모형으로 선택
 
 ```{r}
 confint(Arima(lntour, order = c(2, 1, 1), 
@@ -1010,11 +1625,22 @@ fore_arima <- forecast(fit4_1, h = 12, level = 95)
 plot(fore_arima)
 new_t <- seq(1992, by = 1/12, length = 12)
 lines(new_t, tour92, col = 'red')
+```
 
+```{r}
+plot(fore_arima, xlim =c(1992,1993), ylim =c(2e+5,4.5e+5))
+lines(new_t, tour92, col = "red", lwd = 2)
+legend("topleft", c("observed data", "forecast"), lwd = 2, col = c("red" ,"blue"), bty = 'n')
+
+```
+
+**예측 정확성 비교**
+
+```{r}
 accuracy(fore_arima, tour92)
 ```
 
-# 회귀모형을 이용한 시계열분석
+# 회귀모형을 이용한 시계열분석 {.tabset .tabset-fade}
 
 ```{r}
 tour <- scan('data/timeseries/tourist.txt')
@@ -1047,7 +1673,7 @@ fit2 <- lm(lntour~Time + I(Time^2) + factor(Month) + 0)
 checkresiduals(fit2)
 ```
 
-### 오차모형
+## 오차모형
 
 AR(3) 식별
 
@@ -1056,7 +1682,7 @@ Resid <- fit2$residuals
 ggtsdisplay(Resid, lag.max = 48)
 ```
 
-### 오차 모형 적합
+## 오차 모형 적합
 
 ```{r}
 fit_r1 <- Arima(Resid, order = c(3, 0, 0), include.mean = FALSE)
@@ -1072,7 +1698,7 @@ confint(Arima(Resid, order = c(4, 0, 0), include.mean = FALSE)) # 추가된 모�
 
 역행렬 계산 안될 경우 1차 추세모형 대신 시도
 
-```{r, eval=FALSE}
+```{r, error = T}
 fit_x <- model.matrix(fit2)
 f1 <- Arima(tour.ts, order = c(3, 0, 0), include.mean = FALSE, xreg = fit_x, lambda = 0)
 ```
@@ -1084,7 +1710,7 @@ Resid <- fit1$residuals
 ggtsdisplay(Resid, lag.max = 48) # AR(3)
 ```
 
-### 오차 모형 적합
+## 오차 모형 적합
 
 $AR(3)$ 모형 확정
 
@@ -1116,7 +1742,14 @@ fore_reg <- forecast(f1, xreg = new.x, level = 95)
 plot(fore_reg)
 ```
 
-# 예측 성능 비교
+## 예측 성능 비교
+
+```{r}
+fit4_1 <- Arima(tour.ts, order = c(2, 1, 0), seasonal = list(order = c(1, 1, 0), period = 12), 
+                lambda = 0)
+fore_arima <- forecast(fit4_1, h = 12, level = 95)
+
+```
 
 ```{r}
 accuracy(fore_arima, tour92)
