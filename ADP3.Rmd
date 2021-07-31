@@ -25,6 +25,8 @@ knitr::opts_chunk$set(echo = TRUE,
 library(data.table)
 library(tidyverse)
 library(forecast)
+
+
  
 theme_set(theme_bw())
 ```
@@ -122,7 +124,7 @@ X축을 시차, Y축을 표본 PACF로 표현한 그림으로 모델 인식 절�
 
 -   ACF 지수적 감소
 
--   PACF 1차 시점 이후 절단(1차 시점은 자기 자신이므로 상관관계는 1, 따라서 고려 X)
+-   ACF 1차 시점 이후 절단(0차 시점은 자기 자신이므로 상관관계는 1, 따라서 고려 X)
 
 **이론적 그림이므로 비슷한 형태를 띄면 절단이라고 인식함. 그래프를 이용한 해석은 주관적이므로 정확한 정답은 없음. 다만 딱 봐도 절단이면 절단이라고 인식할 수 있어야 함**
 
@@ -290,7 +292,7 @@ forecast::ggtsdisplay(z_diff)
 
     -   ACF 형태, 단위근 검정 결과로 판단
 
-    -   과대차분 여부 확인
+    -   과대차분 여부 확인(시험 때 굳이 안해도 될 듯)
 
 ## ARIMA 모형 차수 p, q 결정
 
@@ -300,7 +302,11 @@ forecast::ggtsdisplay(z_diff)
 
 -   SACF, SPACF 모두 감소로 인식 : ARMA 모형
 
--   ARMA 모형 중 AIC, BIC가 최소가 되는 모형 선택
+-   후보 모형이 많을 때 AIC, BIC가 최소가 되는 모형 선택
+
+    - 보통 후보 모형 2개 정도로 시작
+    
+    - 과대 적합 확인할 때 모형이 어차피 늘어나므로 너무 많은 모형을 선택 안해도 됨 
 
 ## 절편 포함 여부 결정
 
@@ -368,7 +374,8 @@ plot(ex_7_5d.ts)
 acf(ex_7_5d.ts)
 ```
 
--   ggtsdisplay() : 추세 그래프, acf, pacf plot 생성 **ggtsdisplay() 쓰는게 효율적**
+-   ggtsdisplay() : 추세 그래프, acf, pacf plot 생성 
+-   **ggtsdisplay() 쓰는게 효율적**
 
 ```{r}
 ggtsdisplay(ex_7_5d.ts)
@@ -440,7 +447,7 @@ fit1.2 <- Arima(ex_7_5d.ts, order = c(0, 1, 1), include.drift = T)
 confint(fit1.2)
 
 
-# 둘다 결과는 같지만 예를 들어 MA1을 지워야할 경우 첫번째 방식은 안되고, 두번째 방식으로 해야됨 
+# 둘다 결과는 같지만 예를 들어 MA1을 지워야할 경우 두번째 방식은 안되고, 첫번째 방식으로 해야됨 
 
 ```
 
