@@ -28,26 +28,157 @@ library(tidyverse)
 theme_set(theme_bw())
 ```
 
-# 통계 검정
+# 통계 검정 {.tabset .tabset-fade}
 
 ## 카이제곱 검정
+
+두 범주형 변수 간의 연관성을 통계적으로 검정하는 방법
+
+-   chisq.test(x, y = NULL, simulate.p.value = FALSE)
+
+    -   x, y : 두 범주형 변수를 나타내는 벡터, 만약 x가 행렬 혹은 table 객체면 y는 무시
+
+    -   simulate.p.value = F : 검정통계량의 근사분포로 카이제곱 분포를 이용하여 P-value 계산
+
+**데이터 프레임 형태일 때**
 
 ```{r}
 df_4 <- fread("https://goo.gl/j6lRXD")  #Reading CSV
 df_4 <- df_4[,-"id"]
 df_4
-table(df_4$treatment, df_4$improvement)
+df_4_t <- table(df_4$treatment, df_4$improvement)
 ```
+
+**표본의 크기가 클 때**
 
 ```{r}
 chisq.test(df_4$treatment, df_4$improvement)
+chisq.test(df_4_t)
 
 ```
 
-## 교호작용 
+**표본의 크기가 작을 때**
 
-## mosaic plot 
+-   chisq.test()
 
+    -   simulate.p.value = F : 검정통계량의 근사분포로 카이제곱 분포를 이용하여 P-value 계산
+
+    -   simulate.p.value = T : 모의실험을 통하여 P-value 계산
+
+-   fisher.test()
+
+    -   simulate.p.value = T : 분할표가 2x2보다 큰 경우 P-value를 모의실험을 통해 계산할 것인지 여부
+
+```{r}
+chisq.test(df_4_t, simulate.p.value = T) 
+fisher.test(df_4$treatment, df_4$improvement)
+fisher.test(df_4_t)
+
+```
+
+**범주에 비해서 표본의 크기가 작을 때**
+
+-   chisq.test에서 모의실험에 의한 p-value 계산
+-   Fisher의 정확성 검정 적용
+-   범주 축소
+
+**Example**
+
+| income | veryD | LittleD | ModerateS | VeryS |
+|--------|-------|---------|-----------|-------|
+| \<15K  | 1     | 3       | 10        | 6     |
+| 15-25k | 2     | 3       | 10        | 7     |
+| 25-40k | 1     | 6       | 14        | 12    |
+| \>40K  | 0     | 1       | 9         | 11    |
+
+```{r}
+Job <- matrix(c(1,2,1,0, 3,3,6,1, 10,10,14,9, 6,7,12,11), 
+              ncol = 4, 
+              dimnames = list(income=c("<15k","15 25k","25 40k",">40k"),
+              satisfaction=c("VeryD","LittleD", "ModerateS", "VeryS")))
+Job.chi <- chisq.test(Job)
+Job.chi$expected # 전체 칸 중 50%가 기대빈도수가 5 미만 
+```
+
+```{r}
+chisq.test(Job, simulate.p.value = T)
+fisher.test(Job)
+```
+
+```{r}
+# vcdExtra	0.7-1
+library(vcdExtra)
+Job
+Job.r <- collapse.table(as.table(Job),
+                        income=c("<25k","<25k",">25k",">25k"),
+                        satisfaction=c("D","D","S","S"))
+Job.r
+chisq.test(Job.r)
+```
+
+**table을 만들라고 할 경우**
+
+    | Group   | YES(heart attack) | NO(heart attack ) | Total |
+    |---------|-------------------|-------------------|-------|
+    | placebo | 189               | 10845             | 11034 |
+    | aspirin | 104               | 10933             | 11037 |
+
+```{r}
+aspirin <- matrix(c(189,104,10845,10933), ncol =2,
+                  dimnames=list(Group= c("Placebo","Aspirin"), 
+                                HeartAttack = c("Yes","No")))
+aspirin
+
+chisq.test(aspirin)
+```
+
+## 범주형 자료 시각화
+
+```{r}
+library(vcd)
+Arthritis %>% head()
+arth_table <- table(Arthritis$Treatment, Arthritis$Improved)
+```
+
+**막대 그래프**
+
+```{r}
+
+# 원자료 이용 
+Arthritis %>% 
+  ggplot(aes(x = Treatment, fill = Improved)) + 
+  geom_bar()
+
+# table 이용 
+arth_table %>%
+  as.data.frame() %>%
+  rename(Treatment = Var1, Improved = Var2) %>% 
+  ggplot(aes(x = Treatment, y = Freq, fill = Improved)) + 
+  geom_bar(stat = "identity")
+
+# 원자료 이용 
+Arthritis %>% 
+  ggplot(aes(x = Treatment, fill = Improved)) + 
+  geom_bar(position = "dodge")
+
+Arthritis %>% 
+  ggplot(aes(x = Treatment, fill = Improved)) + 
+  geom_bar(position = "dodge2")
+
+Arthritis %>% 
+  ggplot(aes(x = Treatment, fill = Improved)) + 
+  geom_bar(position = "fill")
+
+```
+
+**mosaic plot**
+
+```{r}
+
+vcd::mosaic(Arthritis$Improved~Arthritis$Treatment, direction = "v")
+vcd::mosaic(~Arthritis$Treatment + Arthritis$Improved, direction = "v")
+
+```
 
 ## 일표본 t 검정
 
@@ -138,27 +269,24 @@ t.test(df_2_w, df_2_m, var.equal = T)
 t.test(df_2$weight~df_2$group, var.equal = T)
 ```
 
-
-**Equal variance 만족 안할 때**
-**welch t-test**
+**Equal variance 만족 안할 때** **welch t-test**
 
 ```{r}
 t.test(df_2_w, df_2_m)
 t.test(df_2$weight~df_2$group)
 ```
 
-
 ## 대응표본 t 검정
 
-one-sample에 대해서 전후 평균 차이를 비교하는 검정 방법 
+one-sample에 대해서 전후 평균 차이를 비교하는 검정 방법
 
 **Assumption**
 
--   정규성 
+-   정규성
 
 **Example**
 
-열마리 쥐에 대해서 약 투약 전후 체중에 대한 데이터가 존재함 
+열마리 쥐에 대해서 약 투약 전후 체중에 대한 데이터가 존재함
 
 ```{r}
 before <-c(200.1, 190.9, 192.7, 213, 241.4, 196.9, 172.2, 185.5, 205.2, 193.7)
@@ -172,7 +300,6 @@ df_3 <- data.frame(
 
 ```
 
-
 ```{r}
 df_3 <- df_3 %>% 
   mutate(group = as.factor(group))
@@ -185,6 +312,7 @@ df_3 %>%
 ```
 
 **Check assumption**
+
 ```{r}
 before <- df_3 %>% 
   filter(group == "before") %>% 
@@ -201,6 +329,7 @@ shapiro.test(diff)
 ```
 
 **Paired t-test**
+
 ```{r}
 t.test(before$weight, after$weight, paired = T)
 t.test(df_3$weight~df_3$group, paired = T)
@@ -213,11 +342,9 @@ wilcox.test(df_3$weight~df_3$group, paired = T)
 
 ```
 
-
-
 ## t-test 정리
 
-![http://www.sthda.com/english/wiki/t-test-analysis-is-it-always-correct-to-compare-means](images/t_test.PNG)
+![<http://www.sthda.com/english/wiki/t-test-analysis-is-it-always-correct-to-compare-means>](images/t_test.PNG)
 
 ## 상관분석
 
@@ -426,19 +553,222 @@ car::outlierTest(anova_result)
 
 21회 기출 참고
 
-# text mining
+# Clustering {.tabset .tabset-fade}
+
+```{r}
+# factoextra	1.0.7
+#devtools::install_version("factoextra", version = "1.0.7")
+library(factoextra)
+```
+
+## k means
+
+```{r}
+
+df_6 <- scale(USArrests)
+```
+
+**optimal cluster k**
+
+```{r}
+fviz_nbclust(df_6, kmeans, method = "gap_stat")
+
+```
+
+**Compute k-means**
+
+```{r}
+set.seed(123)
+km.res <- kmeans(scale(USArrests), 4, nstart = 25)
+```
+
+**Visualization**
+
+```{r}
+library("factoextra")
+fviz_cluster(km.res, data = df_6,
+             palette = c("#00AFBB","#2E9FDF", "#E7B800", "#FC4E07"),
+             main = "Partitioning Clustering Plot"
+             )
+
+```
+
+## hierarchical k-means
+
+**optimal cluster k**
+
+```{r}
+fviz_nbclust(df_6, hkmeans, method = "gap_stat")
+
+```
+
+**Compute hk-means**
+
+```{r}
+res.hk <- hkmeans(df_6, 4)
+```
+
+**Visualization**
+
+```{r}
+fviz_dend(res.hk, rect = T) # rect = T : 정사각형 점선 추가 
+
+```
+
+```{r}
+fviz_cluster(res.hk, repel = TRUE) # repel = T : label 중첩 방지 
+```
+
+## PCA
+
+-   factorextra 패키지가 가장 효율적
+-   recipe를 이용할 수도 있지만 시각화 코드가 긴 단점이 있음
+-   시각화까지 전부 해야되면 factorextra, 전처리만 해도 되면 recipes 쓰면 됨
+
+```{r}
+df_5 <- decathlon2[1:23, 1:10]
+df_5
+```
+
+```{r}
+library(FactoMineR)
+PCA(df_5, graph = T) # scale.unit = T default
+```
+
+**eigenvalue/variance 추출**
+
+```{r}
+res.pca <- PCA(df_5, graph = F) 
+get_eig(res.pca)
+```
+
+**screeplot**
+
+```{r}
+fviz_screeplot(res.pca, addlabels = T) # add_labels = T : 퍼센트 표시 
+```
+
+```{r}
+fviz_pca_var(res.pca)
+```
+
+```{r}
+fviz_pca_ind(res.pca, repel = T)
+
+```
+
+```{r}
+fviz_pca_biplot(res.pca, repel = TRUE)
+
+```
+
+## hierarchical clustering
+
+```{r}
+fviz_nbclust(df_6, hcut, method = "gap_stat")
+```
+
+```{r}
+res <- hcut(USArrests, k = 4, stand = T)
+res
+```
+
+```{r}
+fviz_dend(res, rect = TRUE)
+```
+
+## SOM
+
+<https://rpubs.com/AlgoritmaAcademy/som>
+
+```{r}
+# kohonen	3.0.10
+# devtools::install_version("kohonen", version = "3.0.10")
+library(kohonen)
+
+dat_7 <- fread("data/KAG.csv")
+
+dat_7 %>% glimpse()
+```
+
+-   ad_id : an unique ID of each ad
+-   xyz_campaign_id : an ID associated with each ad campaign of XYZ company
+-   fb_campaign_id : an ID associated with how Facebook tracks each campaign
+-   age : age of the person to whom the ad is shown
+-   gender : gender of the person to whon thw ad si shown
+-   interest : a code specifying the category to which the person’s interest belongs (interests are as mentioned in the person’s Facebook public profile)
+-   Impressions : number of time the ad is shown
+-   Clicks : number od click on for the ad
+-   Spent : amount paid from xyz company to Facebook to shown the ad
+-   Total_Conversion : total number of people who enquired about the product after seeing the ad
+-   approved_Conversion : total number of people who bougth the product after seeing the ad
+
+
+
+```{r}
+dat_7 <- dat_7 %>% 
+  mutate(ad_id = as.factor(ad_id),
+         xyz_campaign_id = as.factor(xyz_campaign_id),
+         fb_campaign_id = as.factor(fb_campaign_id)) 
+
+```
+
+**dummy coding**
+
+-   범주형 변수에 대해 dummy coding 필요 
+-   recipes 이용하면 편함 
+```{r}
+# change the chategoric variables to a dummy variables
+ads.s <- dat_7 %>% 
+  mutate(genderM = ifelse(gender == "M", 1, 0),
+         age2 = ifelse(age == "35-39", 1, 0),
+         age3 = ifelse(age == "40-44", 1, 0),
+         age4 = ifelse(age == "45-49", 1, 0)) %>% 
+  select(-c(1,3:5))
+
+# make a train data sets that scaled and convert them to be a matrix cause kohonen function accept numeric matrix
+ads.train <- as.matrix(scale(ads.s[,-1]))
+```
+
+
+```{r}
+# make a SOM grid
+set.seed(100)
+ads.grid <- somgrid(xdim = 10, ydim = 10, topo = "hexagonal")
+
+# make a SOM model
+set.seed(100)
+ads.model <- som(ads.train, ads.grid, rlen = 500, radius = 2.5, keep.data = TRUE,
+                  dist.fcts = "euclidean")
+
+```
+
+```{r}
+library(factoextra)
+ads.model$codes[[1]] %>% str()
+set.seed(100)
+fviz_nbclust(ads.model$codes[[1]], kmeans, method = "wss")
+```
+
+```{r}
+set.seed(100)
+clust <- kmeans(ads.model$codes[[1]], 6)
+```
+
+```{r}
+plot(ads.model, type = "codes", bgcol = rainbow(9)[clust$cluster], main = "Cluster Map")
+add.cluster.boundaries(ads.model, clust$cluster)
+
+```
+```{r}
+ads.cluster <- data.frame(ads.s, cluster = clust$cluster[ads.model$unit.classif])
+tail(ads.cluster, 10)
+```
+
+## Clustering and modeling tutorial
+
+# text mining {.tabset .tabset-fade}
 
 ## 명사 추출, 불용어 처리
 
 ## 빈도 막대 그래프
-
-# Clustering
-
-## k means
-
-## pca
-
-## fa
-
-## gaussian mixture
-
