@@ -28,11 +28,25 @@ library(tidyverse)
 theme_set(theme_bw())
 ```
 
-# 통계 검정 {.tabset .tabset-fade}
+# 통계 검정
+
+-   카이제곱 검정
+-   일표본 t 검정
+-   독립표본 t 검정
+-   대응표본 t 검정
+-   상관분석
+-   one-way ANOVA
+-   two-way ANOVA
+
+**통계 검정 문제는 따로 안나오는걸로 파악했음**
+
+# 범주형 자료분석 {.tabset .tabset-fade}
 
 ## 카이제곱 검정
 
 두 범주형 변수 간의 연관성을 통계적으로 검정하는 방법
+
+-   표본의 크기에 따라 방법에 차이가 있음
 
 -   chisq.test(x, y = NULL, simulate.p.value = FALSE)
 
@@ -47,6 +61,7 @@ df_4 <- fread("https://goo.gl/j6lRXD")  #Reading CSV
 df_4 <- df_4[,-"id"]
 df_4
 df_4_t <- table(df_4$treatment, df_4$improvement)
+df_4_t
 ```
 
 **표본의 크기가 클 때**
@@ -58,6 +73,8 @@ chisq.test(df_4_t)
 ```
 
 **표본의 크기가 작을 때**
+
+-   표본의 크기가 작을 때 simulation을 이용하는 방법과 피셔의 정확성 검정을 이용하는 방법 2가지가 있음
 
 -   chisq.test()
 
@@ -73,7 +90,6 @@ chisq.test(df_4_t)
 chisq.test(df_4_t, simulate.p.value = T) 
 fisher.test(df_4$treatment, df_4$improvement)
 fisher.test(df_4_t)
-
 ```
 
 **범주에 비해서 표본의 크기가 작을 때**
@@ -105,6 +121,8 @@ chisq.test(Job, simulate.p.value = T)
 fisher.test(Job)
 ```
 
+-   범주 축소할 때 vcdExtra 패키지의 collapse.table 이용하면 편함
+
 ```{r}
 # vcdExtra	0.7-1
 library(vcdExtra)
@@ -117,6 +135,8 @@ chisq.test(Job.r)
 ```
 
 **table을 만들라고 할 경우**
+
+-   데이터 안주고 table 만들어서 분석하라고 할 수도 있음?(예상)
 
     | Group   | YES(heart attack) | NO(heart attack ) | Total |
     |---------|-------------------|-------------------|-------|
@@ -134,8 +154,9 @@ chisq.test(aspirin)
 
 ## 범주형 자료 시각화
 
+-   시험 때 시각화 문제는 랜덤이기 때문에 다방면으로 알고 있는게 좋음
+
 ```{r}
-library(vcd)
 Arthritis %>% head()
 arth_table <- table(Arthritis$Treatment, Arthritis$Improved)
 ```
@@ -173,34 +194,52 @@ Arthritis %>%
 
 **mosaic plot**
 
-```{r}
+-   두 개 이상의 범주형 변수에 대해 시각화할 때 활용
 
+```{r}
+# vcd	1.4-8
+library(vcd)
 vcd::mosaic(Arthritis$Improved~Arthritis$Treatment, direction = "v")
 vcd::mosaic(~Arthritis$Treatment + Arthritis$Improved, direction = "v")
 
 ```
 
+# 집단 간 차이 검정 {.tabset .tabset-fade}
+
 ## 일표본 t 검정
 
 모평균(theoretical mean)과 표본평균(observed mean)을 비교하기 위한 검정 방법
 
-**Example** 병을 채우는 기계가 병에 탄산음료 500ml의 부피로 채우도록 세팅되었다고 하자. 실제 부피는 정규 분포를 따른다. 제조업자는 이 기계가 조금 500ml 보다는 부족하게 채운다고 믿는다. 20개의 병을 샘플로 하여 내부 액체의 부피를 측정하였다.
+**Assumption**
+
+-   정규성
+
+**Example**
+
+-   병을 채우는 기계가 병에 탄산음료 500ml의 부피로 채우도록 세팅되
+-   실제 부피는 정규 분포를 따름
+-   제조업자는 이 기계가 조금 500ml 보다는 부족하게 채운다고 믿음
+-   20개의 병을 샘플로 하여 내부 액체의 부피를 측정함
 
 ```{r}
-bottles <- fread("http://www.instantr.com/wp-content/uploads/2012/11/bottles.csv")
+df_1 <- fread("http://www.instantr.com/wp-content/uploads/2012/11/bottles.csv")
 ```
 
 ```{r}
-boxplot(df_1$weight)
+boxplot(df_1$Volume)
 ```
 
-```{r}
-shapiro.test(df_1$weight)
-car::qqPlot(df_1$weight)
-```
+**정규성 가정 확인**
 
 ```{r}
-t.test(df_1$weight, mu = 500, alternative = "less")
+shapiro.test(df_1$Volume)
+car::qqPlot(df_1$Volume)
+```
+
+**t test**
+
+```{r}
+t.test(df_1$Volume, mu = 500, alternative = "less")
 ```
 
 **Non-normal 일 때**
@@ -208,7 +247,7 @@ t.test(df_1$weight, mu = 500, alternative = "less")
 **wilcoxon test**
 
 ```{r}
-wilcox.test(df_1$weight, mu = 500, alternative = "less")
+wilcox.test(df_1$Volume, mu = 500, alternative = "less")
 
 ```
 
@@ -248,6 +287,8 @@ df_2 %>%
 
 **Check assumption**
 
+**정규성 가정 확인**
+
 ```{r}
 df_2_w <- df_2 %>% filter(group == "Woman") %>% select(weight)
 df_2_m <- df_2 %>% filter(group == "Man") %>% select(weight)
@@ -257,9 +298,14 @@ shapiro.test(df_2_m$weight)
 
 ```
 
+**등분산성 가정 확인**
+
+-   var.test의 귀무가설을 두 그룹의 분산비가 1임
+-   귀무가설을 기각할 수 없으므로 가정 만족
+
 ```{r}
 var.test(weight~group, data = df_2)
-
+car::leveneTest(weight~group, data = df_2) 
 ```
 
 **unpaired t-test**
@@ -269,20 +315,22 @@ t.test(df_2_w, df_2_m, var.equal = T)
 t.test(df_2$weight~df_2$group, var.equal = T)
 ```
 
-**Equal variance 만족 안할 때** **welch t-test**
+**Equal variance 만족 안할 때**
+
+**welch t-test**
 
 ```{r}
-t.test(df_2_w, df_2_m)
-t.test(df_2$weight~df_2$group)
+t.test(df_2_w, df_2_m, var.equal = F)
+t.test(df_2$weight~df_2$group, var.equal = F)
 ```
 
 ## 대응표본 t 검정
 
-one-sample에 대해서 전후 평균 차이를 비교하는 검정 방법
+동일한 대상에 대해서 전후 평균 차이를 비교하는 검정 방법
 
 **Assumption**
 
--   정규성
+-   정규성(전후 값의 차이에 대한 정규성)
 
 **Example**
 
@@ -297,7 +345,7 @@ df_3 <- data.frame(
                 group = rep(c("before", "after"), each = 10),
                 weight = c(before,  after)
                 )
-
+df_3
 ```
 
 ```{r}
@@ -308,7 +356,7 @@ df_3 <- df_3 %>%
 df_3 %>% 
   ggplot(aes(x = group, y = weight, fill = group)) +
   geom_boxplot() + 
-  scale_x_discrete(limits = c("before", "after"))
+  scale_x_discrete(limits = c("before", "after")) # 그래프에서 범주 순서 바꾸는 옵션 
 ```
 
 **Check assumption**
@@ -507,6 +555,8 @@ plot(anova_result, 1)
 
 **정규성 위반 시**
 
+**변환을 이용한 방법**
+
 -   y에 대한 적절한 변환 진행 필요
 -   log, sqrt, exp, x\^2 등이 있음
 -   log 변환 시에 inf 값 주의, log(y+1)로 변환 필요
@@ -520,7 +570,10 @@ anova_result2 <- aov(y~group, data = df2)
 summary(anova_result2)
 ```
 
-**비모수 검정** - 변환해도 가정 만족 안할 시 고려할 필요가 있음 - 분포 가정이 없는 검정임
+**비모수 검정**
+
+-   변환해도 가정 만족 안할 시 고려할 필요가 있음
+-   분포 가정이 없는 검정임
 
 ```{r, eval = F}
 kruskal.test(y~group, df)
@@ -555,6 +608,10 @@ car::outlierTest(anova_result)
 
 # Clustering {.tabset .tabset-fade}
 
+-   기출 확인 결과 clustering 모델을 적용하는 방법만 알고 있으면 됨 
+-   SOM 같이 모르는 모델 나오면 못쓸 수도 있으므로 여러가지 모델을 정리해가는 것이 필요함 
+-   factorextra 패키지가 시각화 및 기타 분석에 매우 유용함 
+
 ```{r}
 # factoextra	1.0.7
 #devtools::install_version("factoextra", version = "1.0.7")
@@ -563,13 +620,15 @@ library(factoextra)
 
 ## k means
 
+-    k-means는 거리 기반이므로 scaling 필수 
 ```{r}
-
-df_6 <- scale(USArrests)
+df_6 <- scale(USArrests) # scale(x, center = TRUE, scale = TRUE)
 ```
 
 **optimal cluster k**
 
+-    factoextra 패키지를 이용하면 최적의 cluster 개수를 시각화해줌 
+-    method는 여러 가지가 있음 
 ```{r}
 fviz_nbclust(df_6, kmeans, method = "gap_stat")
 
@@ -579,7 +638,7 @@ fviz_nbclust(df_6, kmeans, method = "gap_stat")
 
 ```{r}
 set.seed(123)
-km.res <- kmeans(scale(USArrests), 4, nstart = 25)
+km.res <- kmeans(df_6, 4, nstart = 25)
 ```
 
 **Visualization**
@@ -625,11 +684,14 @@ fviz_cluster(res.hk, repel = TRUE) # repel = T : label 중첩 방지
 -   recipe를 이용할 수도 있지만 시각화 코드가 긴 단점이 있음
 -   시각화까지 전부 해야되면 factorextra, 전처리만 해도 되면 recipes 쓰면 됨
 
+
+**Example**
 ```{r}
 df_5 <- decathlon2[1:23, 1:10]
 df_5
 ```
 
+-    그냥 prcomp 써도 상관없음 
 ```{r}
 library(FactoMineR)
 PCA(df_5, graph = T) # scale.unit = T default
@@ -647,10 +709,17 @@ get_eig(res.pca)
 ```{r}
 fviz_screeplot(res.pca, addlabels = T) # add_labels = T : 퍼센트 표시 
 ```
-
+**Bi plot**
 ```{r}
+res.pca$var$coord %>% head()
 fviz_pca_var(res.pca)
 ```
+
+-   주성분 별로 계수의 효과를 파악하기 어렵기 때문에 plot을 그려서 확인 
+-   화살표가 찍히는 좌표는 각 주성분에서 특정 변수의 가중치 값이 됨 
+-   예를 들어 Pole.vault의 경우 PC1의 가중치는 -0.21, PC2의 가중치는 0.8이므로 해당 좌표에 점이 찍힘 
+-   즉 주성분 축에 평행할수록 해당 변수는 주성분에 크게 기여했다고 볼 수 있음 
+-   같은 각도로 뻗어나가는 경우 서로 비슷한 변수라고 볼 수 있음 
 
 ```{r}
 fviz_pca_ind(res.pca, repel = T)
@@ -658,9 +727,13 @@ fviz_pca_ind(res.pca, repel = T)
 ```
 
 ```{r}
+res.pca$ind$coord %>% head()
 fviz_pca_biplot(res.pca, repel = TRUE)
 
 ```
+ 
+
+
 
 ## hierarchical clustering
 
@@ -690,20 +763,17 @@ dat_7 <- fread("data/KAG.csv")
 
 dat_7 %>% glimpse()
 ```
-
 -   ad_id : an unique ID of each ad
 -   xyz_campaign_id : an ID associated with each ad campaign of XYZ company
 -   fb_campaign_id : an ID associated with how Facebook tracks each campaign
 -   age : age of the person to whom the ad is shown
 -   gender : gender of the person to whon thw ad si shown
--   interest : a code specifying the category to which the person’s interest belongs (interests are as mentioned in the person’s Facebook public profile)
+-   interest : a code specifying the category to which the person's interest belongs (interests are as mentioned in the person's Facebook public profile)
 -   Impressions : number of time the ad is shown
 -   Clicks : number od click on for the ad
 -   Spent : amount paid from xyz company to Facebook to shown the ad
 -   Total_Conversion : total number of people who enquired about the product after seeing the ad
 -   approved_Conversion : total number of people who bougth the product after seeing the ad
-
-
 
 ```{r}
 dat_7 <- dat_7 %>% 
@@ -715,10 +785,9 @@ dat_7 <- dat_7 %>%
 
 **dummy coding**
 
--   범주형 변수에 대해 dummy coding 필요 
--   recipes 이용하면 편함 
+-   범주형 변수에 대해 dummy coding 필요
+
 ```{r}
-# change the chategoric variables to a dummy variables
 ads.s <- dat_7 %>% 
   mutate(genderM = ifelse(gender == "M", 1, 0),
          age2 = ifelse(age == "35-39", 1, 0),
@@ -726,10 +795,11 @@ ads.s <- dat_7 %>%
          age4 = ifelse(age == "45-49", 1, 0)) %>% 
   select(-c(1,3:5))
 
-# make a train data sets that scaled and convert them to be a matrix cause kohonen function accept numeric matrix
-ads.train <- as.matrix(scale(ads.s[,-1]))
 ```
 
+```{r}
+ads.train <- as.matrix(scale(ads.s[,-1]))
+```
 
 ```{r}
 # make a SOM grid
@@ -738,14 +808,17 @@ ads.grid <- somgrid(xdim = 10, ydim = 10, topo = "hexagonal")
 
 # make a SOM model
 set.seed(100)
-ads.model <- som(ads.train, ads.grid, rlen = 500, radius = 2.5, keep.data = TRUE,
+ads.model <- som(ads.train, ads.grid, 
+                  rlen = 500, 
+                  radius = 2.5, # 뉴런의 반경 
+                  keep.data = TRUE, # return original data  
                   dist.fcts = "euclidean")
 
 ```
 
 ```{r}
 library(factoextra)
-ads.model$codes[[1]] %>% str()
+ads.model$codes[[1]] %>% dim()
 set.seed(100)
 fviz_nbclust(ads.model$codes[[1]], kmeans, method = "wss")
 ```
@@ -756,19 +829,160 @@ clust <- kmeans(ads.model$codes[[1]], 6)
 ```
 
 ```{r}
+# 각 class가 뉴런의 학습에 기여한 기여율 
 plot(ads.model, type = "codes", bgcol = rainbow(9)[clust$cluster], main = "Cluster Map")
 add.cluster.boundaries(ads.model, clust$cluster)
 
 ```
+
 ```{r}
 ads.cluster <- data.frame(ads.s, cluster = clust$cluster[ads.model$unit.classif])
-tail(ads.cluster, 10)
+tail(ads.cluster, 5)
 ```
 
-## Clustering and modeling tutorial
+# Clustering and modeling tutorial {.tabset .tabset-fade}
 
-# text mining {.tabset .tabset-fade}
+<https://www.kaggle.com/uciml/breast-cancer-wisconsin-data>
 
-## 명사 추출, 불용어 처리
+UCI machine learning 데이터가 시험에 나오는 경우가 많은 것 같아서 kaggle tutorial 중에 pca 후 모델링 관련 괜찮은 데이터를 골랐습니다.
 
-## 빈도 막대 그래프
+## 데이터 불러오기
+
+```{r}
+cancer <- fread("data/cancer.csv", fill = T) # fill = T : 행길이가 다를 경우 강제로 채워줌 
+
+cancer <- cancer %>% 
+  select(-c(id, V33)) %>% 
+  janitor::clean_names()
+
+cancer %>% glimpse()
+
+
+```
+
+## EDA
+
+```{r}
+library(corrplot)
+
+cancer %>% 
+  select_if(is.numeric) %>% 
+  cor() %>% 
+  corrplot()
+
+```
+
+```{r}
+cancer$diagnosis <- factor(cancer$diagnosis, label = c("Benign", "Malignant"))
+cancer %>% is.na() %>% colSums()
+```
+
+## PCA
+
+-   PCA는 범주형 변수가 있으면 안되므로 numeric만 선택
+-   변수 스케일에 대한 영향을 줄이기 위해 normalize 진행(center : 평균 빼기, scale : 분산으로 나누기)
+-   cumulative proportion을 보면 PC1:PC5 정도 선택하면 전체 분산에 84% 설명
+
+```{r}
+cancer_pca <- cancer %>% 
+  select_if(is.numeric)
+pca_result <- prcomp(cancer_pca, scale = T, center = T)
+summary(pca_result)
+```
+
+## Screeplot
+
+-   fviz_eig로 screeplot을 그릴 수 있음
+
+```{r}
+fviz_eig(pca_result, addlabels = T)
+```
+
+## bi plot
+
+-   fviz_pca_biplot()
+
+    -   col.ind : 개별 관측치에 대해 특정 변수 기준으로 색을 다르게 부여
+
+```{r}
+fviz_pca_biplot(pca_result, col.ind = cancer$diagnosis, col = "black")
+fviz_pca(pca_result)
+
+```
+
+## PCA한 결과로 dataframe을 만들 때
+
+-   prcomp를 할당한 결과에서 x를 추출할 수 있음
+
+```{r}
+pca_columns <- pca_result$x %>% 
+  as_tibble() %>% 
+  select(PC1, PC2, PC3, PC4, PC5)
+
+df_8 <- data.frame(diagnosis = cancer$diagnosis, pca_columns)
+df_8
+```
+
+## recipes를 이용한 방법
+
+-   단순히 PCA를 적용해서 모델링을 한다고 했을 때 recipes가 효율적
+
+-   단점은 시각화 코드가 복잡해서 생략..
+
+-   recipes도 stat 패키지의 prcomp 함수를 이용하므로 결과 동일
+
+-   step_pca()
+
+    -   threshold : 주성분을 총 변동의 몇 %를 설명할 정도로 선택할 것인지
+    -   위의 예시를 보면 PC4 : 0.79, PC5 : 0.84인데 treshold를 0.80으로 잡으면 PC5까지 선택됨
+
+```{r}
+library(recipes)
+
+cancer %>% 
+  recipe(diagnosis~.) %>% 
+  step_normalize(all_predictors()) %>% 
+  step_pca(all_numeric(), threshold = 0.80) %>% 
+  prep() %>% 
+  juice()
+
+```
+
+```{r}
+library(caret)
+library(rsample)
+
+
+splits <- initial_split(df_8, prop = 0.7, strata = diagnosis)
+train <- training(splits)
+test <- testing(splits)
+```
+
+```{r}
+set.seed(123)
+control <- trainControl(method='cv', 
+                        number=5, 
+                        classProbs = T, # target이 1 or 0이 아니라 yes or no 형태여야함.  
+                        summaryFunction = twoClassSummary, # auc, sensitivity, specificity
+                        savePredictions = T
+                        )
+tunegrid <- expand.grid(mtry = c(1:5))
+
+library(tictoc)
+tic()
+rf_gridsearch <- train(diagnosis ~ .,             
+                       data = train,               
+                       method = 'rf',  
+                       trControl = control,
+                       tuneGrid = tunegrid,
+                       metric = "ROC",
+                       verbose = F) 
+toc() 
+rf_gridsearch
+
+pred <- predict(rf_gridsearch, newdata = test, type = "raw")
+
+cmatrix <- caret::confusionMatrix(pred, test$diagnosis) 
+cmatrix
+
+```
