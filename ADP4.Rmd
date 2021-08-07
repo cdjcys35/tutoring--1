@@ -222,15 +222,12 @@ vcd::mosaic(~Arthritis$Treatment + Arthritis$Improved, direction = "v")
 -   20개의 병을 샘플로 하여 내부 액체의 부피를 측정함
 
 ```{r}
-<<<<<<< HEAD
 #df_1 <- fread("http://www.instantr.com/wp-content/uploads/2012/11/bottles.csv")
 #write.csv(df_1, "data/df_1.csv")
 
 df_1 <- fread("data/df_1.csv")
 
-=======
 df_1 <- fread("http://www.instantr.com/wp-content/uploads/2012/11/bottles.csv")
->>>>>>> 105625b6ece5919d09aa710164c008121ec30954
 ```
 
 ```{r}
