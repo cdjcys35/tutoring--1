@@ -1003,4 +1003,3 @@ cmatrix <- caret::confusionMatrix(pred, test$diagnosis)
 cmatrix
 
 ```
->>>>>>> 105625b6ece5919d09aa710164c008121ec30954
