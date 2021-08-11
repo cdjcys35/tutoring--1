@@ -1,0 +1,56 @@
+---
+title: "ADP6"
+output:
+  html_document:
+    number_sections: true
+    fig_caption: true
+    toc: true
+    fig_width: 5
+    fig_height: 4
+    theme: cosmo
+    highlight: tango
+    code_folding: show
+---
+
+# 고객 이탈 분류 문제 {.tabset .tabset-fade}
+
+## Data description
+
+| 성별 | 나이 | 카드등급 | 소득 | ...(15개 더) | y(고객이탈여부) |
+|------|------|----------|------|--------------|-----------------|
+|      |      |          |      |              |                 |
+|      |      |          |      |              |                 |
+|      |      |          |      |              |                 |
+
+
+## EDA 및 전처리 
+
+
+## 분류모델 3개 적용 후 confusion matrix 출력 
+
+
+## 3개 모델 앙상블 모형 생성 후 예측값 저장 
+
+## 예측 결과 csv 제출 
+
+
+# 시계열 데이터 분석 {.tabset .tabset-fade}
+
+## Data descreption 
+
+-   날짜 및 주가 수익률 데이터로 time series 변환 전 데이터 제공 
+
+
+## 데이터 로드, 정상성/이분산성 검증 
+
+## 정상성 파악 근거에 따른 고정시계열 여부 파악
+
+## SARIMA 분석 및 최적 모형 파라미터 선택 
+
+## 잔차 그래프 출력 
+
+## 분석 결과 PDF 제출 
+
+
+
+
