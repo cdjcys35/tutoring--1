@@ -184,13 +184,14 @@ set.seed(123)
 control <- trainControl(method='cv', 
                         number=5)
 
-
+library(doParallel)
+doParallel::registerDoParallel()
 svm_gridsearch <- train(actual ~ .,             
                        data = train,               
                        method = 'svmPoly',  
                        trControl = control, 
                        metric = 'RMSE',
-                       tuneLength = 10) 
+                       tuneLength = 2) 
 
 
 pred <- predict(svm_gridsearch, newdata = test)
@@ -281,7 +282,7 @@ dat1 <- dat %>%
     bind_cols(km.res$cluster) %>% 
     rename(cluster = ...7)
 
-dat1
+dat1 %>% head()
 
 ```
 
