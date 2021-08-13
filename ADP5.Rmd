@@ -48,6 +48,7 @@ temp %>% str()
 -   결측값 처리
 -   필요 없는 칼럼 처리
 -   전처리 완료된 결과 산출
+-   데이터 무결성 증명? 
 -   train/test set을 어떻게 나눌지 설명
 
 **결측값 처리**
@@ -83,6 +84,27 @@ temp1 %>% is.na() %>% colSums()
 
 ```
 
+**lag 값 비교** 
+```{r}
+temp1 %>% head()
+temp1 %>% tail()
+
+lag1 <- temp1$temp_1
+
+lag1_1 <- temp1$actual %>% 
+  lag(n = 1) %>% 
+  replace_na(45)
+
+lag1 == lag1_1
+
+lag2 <- temp1$temp_2
+lag2_1 <- temp1$actual %>% 
+  lag(n = 2) 
+
+lag2 == lag2_1
+
+```
+
 **recipes**
 
 -   recipe를 통해 결측치 처리, 필요 없는 칼럼 처리 등 데이터 전처리를 진행해줌
@@ -92,18 +114,36 @@ temp1 %>% is.na() %>% colSums()
 
 ```{r}
 rec <- temp1 %>% 
-    recipe(actual~.) %>% 
-    step_rm(forecast_acc, forecast_noaa, forecast_under, friend, year, month, day, week) %>% 
-    step_meanimpute(average, actual, temp_1, temp_2) %>% 
-    step_mutate( 
-                month = month(date), 
-                day = day(date), 
-                week = week(date))
-    
+  recipe(actual~.) %>% 
+  step_rm(forecast_acc, forecast_noaa, forecast_under, friend, year, month, day, week, temp_1, temp_2) %>% 
+  step_meanimpute(average, actual) %>%
+  step_mutate(month = month(date), 
+              day = day(date), 
+              week = week(date))
+  
 temp1 <- rec %>% prep() %>% juice()
 temp1 %>% head()
 temp1 %>% is.na() %>% colSums()
+
+
+lag1_1 <- temp1$actual %>% 
+  lag(n = 1) %>% 
+  replace_na(45)
+
+lag2_1 <- temp1$actual %>% 
+  lag(n = 2)
+
+lag2_1[1] <- 45
+lag2_1[2] <- 44
+
+lag_dat <- data.frame(temp1 = lag1_1, temp2 = lag2_1)
+
+temp1 <- temp1 %>% 
+  bind_cols(lag_dat)
+
 ```
+
+
 
 ```{r}
 
