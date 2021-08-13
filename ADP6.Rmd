@@ -252,6 +252,10 @@ cmatrix$byClass
 
 
 ```{r}
+
+library(doParallel)
+cl <- makePSOCKcluster(4)
+registerDoParallel(cl)
 logit_gridsearch <- train(attrition_flag ~ .,             
                        data = train,               
                        method = 'glmnet',  
@@ -260,7 +264,7 @@ logit_gridsearch <- train(attrition_flag ~ .,
                        metric = "ROC") 
 
 logit_gridsearch
-
+stopCluster(cl)
 plot(varImp(logit_gridsearch, scale = F))
 
 pred <- predict(logit_gridsearch, newdata = test, type = "raw")
@@ -272,13 +276,16 @@ cmatrix$byClass
 ```
 
 ```{r}
+library(doParallel)
+cl <- makePSOCKcluster(4)
+registerDoParallel(cl)
 logit2_gridsearch <- train(attrition_flag ~ .,             
                        data = train,               
                        method = 'glm',  
                        trControl = control,
                        tuneLength = 20, 
                        metric = "ROC") 
-
+stopCluster(cl)
 logit2_gridsearch
 
 plot(varImp(logit_gridsearch, scale = F))

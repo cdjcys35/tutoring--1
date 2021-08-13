@@ -215,8 +215,8 @@ svm_gridsearch <- train(actual ~ .,
 # DALEX	2.0.1
 library(DALEX)
 ex <- DALEX::explain(model = svm_gridsearch, 
-               data = test[,-5], 
-               y = test$actual)
+               data = train[,-5], 
+               y = train$actual)
 
 vip <- model_parts(explainer = ex, B = 50)
 plot(vip)
