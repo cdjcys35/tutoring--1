@@ -28,15 +28,15 @@ library(forecast)
 
 ## Data description
 
--   year: 2016 for all data points
--   month: number for month of the year
--   day: number for day of the year
--   week: day of the week as a character string
--   temp_2: max temperature 2 days prior
--   temp_1: max temperature 1 day prior
--   average: historical average max temperature
--   actual: max temperature measurement
--   friend: your friend's prediction, a random number between 20 below the average and 20 above the average
+-   year: 2016년도
+-   month: 월
+-   day: 일
+-   week: 요일
+-   temp_2: 2일 이전 최대 온도
+-   temp_1: 1일 이전 최대 온도
+-   average: 최대 온도 평균
+-   actual: 실제 최대 온도
+-   friend: 친구가 예측한 값, 평균 +- 20 사이의 임의의 숫자
 
 ```{r}
 temp <- fread("data/temps.csv")
@@ -48,10 +48,24 @@ temp %>% str()
 -   결측값 처리
 -   필요 없는 칼럼 처리
 -   전처리 완료된 결과 산출
+-   데이터 무결성 증명? 
 -   train/test set을 어떻게 나눌지 설명
+
+**결측값 처리**
+
+-   데이터 상으로 존재하지 않음
+-   2016년도 1년 기준 데이터의 차원이 348, 12 이므로 시계열이 연속적이지 않음
+-   따라서 시계열의 sequence가 절단되지 않도록 결측치를 채워주는 것이 바람직?
 
 ```{r}
 temp %>% is.na() %>% colSums()
+temp %>% dim()
+```
+
+-   2016년 day 기준 sequence를 생성하고 merge를 통해 기존 데이터를 병합해줌
+-   각 변수별로 18개의 결측치가 생성됨
+
+```{r}
 temp <- temp %>% 
     mutate(date = make_date(year, month, day)) 
     
@@ -70,34 +84,78 @@ temp1 %>% is.na() %>% colSums()
 
 ```
 
+**lag 값 비교** 
 ```{r}
-rec <- temp1 %>% 
-    recipe(actual~.) %>% 
-    step_rm(forecast_acc, forecast_noaa, forecast_under, friend, year, month, day, week) %>% 
-    step_meanimpute(average, actual, temp_1, temp_2) %>% 
-    step_mutate( 
-                month = month(date), 
-                day = day(date), 
-                week = week(date))
-    
-temp1 <- rec %>% prep() %>% juice()
+temp1 %>% head()
+temp1 %>% tail()
 
-temp1 %>% is.na() %>% colSums()
+lag1 <- temp1$temp_1
+
+lag1_1 <- temp1$actual %>% 
+  lag(n = 1) %>% 
+  replace_na(45)
+
+lag1 == lag1_1
+
+lag2 <- temp1$temp_2
+lag2_1 <- temp1$actual %>% 
+  lag(n = 2) 
+
+lag2 == lag2_1
+
 ```
 
-```{r}
+**recipes**
 
-act_ts <- temp1$actual %>% ts()
-ggtsdisplay(act_ts)
+-   recipe를 통해 결측치 처리, 필요 없는 칼럼 처리 등 데이터 전처리를 진행해줌
+-   결측치 처리 방법은 본인이 편한 걸로 선택하면 됨(문제에서 이유를 쓰라고 하지 않았기 때문에)
+-   누락된 데이터에서 year, month, day, week 변수가 생성되었기 때문에 삭제하고 다시 생성해줌
+-   year 변수의 경우 2016년도만 있기 때문에 제외
+
+```{r}
+rec <- temp1 %>% 
+  recipe(actual~.) %>% 
+  step_rm(forecast_acc, forecast_noaa, forecast_under, friend, year, month, day, week, temp_1, temp_2) %>% 
+  step_meanimpute(average, actual) %>%
+  step_mutate(month = month(date), 
+              day = day(date), 
+              week = week(date))
+  
+temp1 <- rec %>% prep() %>% juice()
+temp1 %>% head()
+temp1 %>% is.na() %>% colSums()
+
+
+lag1_1 <- temp1$actual %>% 
+  lag(n = 1) %>% 
+  replace_na(45)
+
+lag2_1 <- temp1$actual %>% 
+  lag(n = 2)
+
+lag2_1[1] <- 45
+lag2_1[2] <- 44
+
+lag_dat <- data.frame(temp1 = lag1_1, temp2 = lag2_1)
+
+temp1 <- temp1 %>% 
+  bind_cols(lag_dat)
+
+```
+
+
+
+```{r}
 
 splits <- initial_time_split(temp1, prop = 0.7)
 
 train <- training(splits)
 test <- testing(splits)
 
+train %>% tail()
+test %>% head()
+
 ```
-
-
 
 ## Random forest로 검증 및 분석
 
@@ -105,27 +163,26 @@ test <- testing(splits)
 -   Random forest를 활용해 예측 및 검증, 파라미터 튜닝으로 성능 강화
 -   columns 별 중요도 시각화
 
-
-
 **caret time series fold**
+
 -   initialWindow: the initial number of consecutive values in each training set sample
+
 -   horizon: The number of consecutive values in test set sample
+
 -   fixedWindow: A logical: if FALSE, the training set always start at the first sample and the training set size will vary over data splits.
 
 ![](images/time.PNG)
 
-
-
 ```{r}
-
+train %>% dim()
+test %>% dim()
 control <- trainControl(method='timeslice',
-                        initialWindow = 64,
-                        horizon = 32,
-                        fixedWindow = TRUE
+                        initialWindow = 110,
+                        horizon = 110,
+                        fixedWindow = FALSE
                         )
 
 ```
-
 
 ```{r}
 
@@ -147,7 +204,8 @@ print(RMSE(test$average, test$actual))
 
 ```
 
-## time series split 안했을 때 
+## time series split 안했을 때
+
 ```{r}
 splits <- initial_split(temp1, prop = 0.7)
 
@@ -157,6 +215,7 @@ test <- testing(splits)
 set.seed(123)
 control <- trainControl(method='cv', 
                         number=5)
+
 
 
 rf_gridsearch <- train(actual ~ .,             
@@ -171,7 +230,6 @@ print(RMSE(pred, test$actual))
 
 ```
 
-
 ## SVM로 검증 및 분석
 
 -   SVM의 예측한계선을 설정하는 방법을 말하고 어떤 방법을 써야 하는지 기술
@@ -179,28 +237,36 @@ print(RMSE(pred, test$actual))
 -   columns 별 중요도 시각화
 
 ```{r, warning = FALSE}
-
 set.seed(123)
 control <- trainControl(method='cv', 
                         number=5)
 
-library(doParallel)
-doParallel::registerDoParallel()
 svm_gridsearch <- train(actual ~ .,             
                        data = train,               
                        method = 'svmPoly',  
                        trControl = control, 
                        metric = 'RMSE',
                        tuneLength = 2) 
+#plot(varImp(svm_gridsearch), scale = F)
+svm_gridsearch
+# DALEX	2.0.1
+library(DALEX)
+ex <- DALEX::explain(model = svm_gridsearch, 
+               data = train[,-3], 
+               y = train$actual)
+
+vip <- model_parts(explainer = ex)
+plot(vip)
+
 
 
 pred <- predict(svm_gridsearch, newdata = test)
 print(RMSE(pred, test$actual))
 
+# 예측 한계선 
+print(RMSE(test$average, test$actual))
 
 ```
-
-
 
 ## 최적 모델 선택
 
@@ -212,7 +278,6 @@ print(RMSE(pred, test$actual))
 
 -   7주 동안의 전력 소비량 데이터(15분 간격으로 측정)
 -   year, month, day, 가구코드, 전력사용량
-
 
 ```{r}
 library(ResidentialEnergyConsumption)
@@ -237,14 +302,13 @@ dat %>% is.na() %>% colSums()
 
 ## clustering
 
--   table 만들기 
+-   table 만들기
 
 | 가구코드 | Date | 일사용량 total | Cluster |
-|----------|------|------------------|---------|
-|          |      |                  |         |
-|          |      |                  |         |
-|          |      |                  |         |
-
+|----------|------|----------------|---------|
+|          |      |                |         |
+|          |      |                |         |
+|          |      |                |         |
 
 ```{r}
 result <- dat %>% 
@@ -299,7 +363,6 @@ dat1 %>% head()
 | 토  |      |      |      |      |          |
 | 일  |      |      |      |      |          |
 
-
 ```{r}
 
 dat1 %>%
@@ -319,8 +382,6 @@ dat1 %>%
 
 ```
 
-
-
 # 회귀 분석 모델링 {.tabset .tabset-fade}
 
 ## train/test 7:3으로 구분
@@ -328,9 +389,12 @@ dat1 %>%
 ## R2/RMSE/정확도 계산
 
 -   정확도 : 실제값\>예측값인 경우 (1-예측값/실제값), 실제값\<예측값인 경우 (1-실제값/예측값) 결과를 평균내서 산출
+<<<<<<< HEAD
 
 
 
 
 
 
+=======
+>>>>>>> e3e99d1dbfd2c35fabeb3779d55167da7ada5b8a
