@@ -12,15 +12,51 @@ output:
     code_folding: show
 ---
 
+
+```{r}
+library(tidyverse)
+library(data.table)
+library(lubridate)
+library(caret)
+library(recipes)
+library(rsample)
+library(forecast)
+```
+
+
+
 # 고객 이탈 분류 문제 {.tabset .tabset-fade}
 
+```{r}
+list.files('data')
+churn <- fread("data/BankChurners.csv")
+
+```
+
+
+
 ## Data description
+
+**original** 
 
 | 성별 | 나이 | 카드등급 | 소득 | ...(15개 더) | y(고객이탈여부) |
 |------|------|----------|------|--------------|-----------------|
 |      |      |          |      |              |                 |
 |      |      |          |      |              |                 |
 |      |      |          |      |              |                 |
+
+
+**custom**
+
+```{r}
+library(gt)
+churn %>% 
+  head() %>% 
+  gt()
+
+
+```
+
 
 
 ## EDA 및 전처리 

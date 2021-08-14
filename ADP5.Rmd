@@ -178,7 +178,7 @@ print(RMSE(pred, test$actual))
 -   SVM를 활용해 예측 및 검증, 파라미터 튜닝으로 성능 강화
 -   columns 별 중요도 시각화
 
-```{r}
+```{r, warning = FALSE}
 
 set.seed(123)
 control <- trainControl(method='cv', 
@@ -328,6 +328,7 @@ dat1 %>%
 ## R2/RMSE/정확도 계산
 
 -   정확도 : 실제값\>예측값인 경우 (1-예측값/실제값), 실제값\<예측값인 경우 (1-실제값/예측값) 결과를 평균내서 산출
+
 
 
 
