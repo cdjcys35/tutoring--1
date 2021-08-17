@@ -1,0 +1,79 @@
+---
+title: "ADP7"
+output:
+  html_document:
+    number_sections: true
+    fig_caption: true
+    toc: true
+    fig_width: 5
+    fig_height: 4
+    theme: cosmo
+    highlight: tango
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE, 
+                      warning = FALSE, 
+                      fig.align = "center")
+```
+
+
+
+
+```{r}
+library(tidyverse)
+library(data.table)
+library(lubridate)
+library(caret)
+library(recipes)
+library(rsample)
+library(forecast)
+```
+
+
+
+18회 기출 
+
+# 고객 등급 예측 문제 {.tabset .tabset-fade}
+
+데이터 : ID, grade, days, count, amount 
+
+## EDA & 결측치 처리 
+
+## 파생변수 3개 생성 & 이유 작성 
+
+## Train/test 7:3 분할 
+
+## SOM 군집분석 
+
+## confusion matrix 
+
+## 분류 분석 4가지 
+
+-   rf, 다층 신경망 등 4가지 방법으로 예측 후 F1 score, ROC curve 생성 
+
+
+
+# 텍스트 마이닝(영어) {.tabset .tabset-fade}
+
+## 명사 추출 
+
+## 불용어 처리 
+
+
+# 시계열분석 {.tabset .tabset-fade}
+
+데이터 : 월별 교통사고건수 
+
+## 정상성 확인 
+
+## ARIMA 모델 3가지 제시 
+
+## 최적 모델 선택, 이유 설멍  
+
+## 최종 예측, 실제 결과와 비교, 평가방법을 선택한 이유 제시 
+
+
+

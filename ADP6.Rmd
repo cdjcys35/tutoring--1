@@ -287,7 +287,6 @@ cmatrix
 cmatrix$byClass
 ```
 
-<<<<<<< HEAD
 **custom**
 
 ```{r}
