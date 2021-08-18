@@ -14,6 +14,17 @@ output:
 
 20회 복기
 
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE, 
+                      warning = FALSE,
+                      fig.align = "center")
+```
+
+
+
 ```{r}
 library(tidyverse)
 library(data.table)
@@ -45,11 +56,11 @@ temp %>% str()
 
 ## 데이터 전처리 (10점)
 
--   결측값 처리
--   필요 없는 칼럼 처리
--   전처리 완료된 결과 산출
--   데이터 무결성 증명? 
+-   데이터 확인 후 결측치 예측?   
+-   예측되는 결측치를 대체
+-   결측치에 대한 부분을 제외하고 다른 부분에 대한 보완이 필요하면 보완 
 -   train/test set을 어떻게 나눌지 설명
+-   데이터 분석 준비가 완료됨을 보여라(전처리 결과 산출)
 
 **결측값 처리**
 
@@ -85,6 +96,12 @@ temp1 %>% is.na() %>% colSums()
 ```
 
 **lag 값 비교** 
+
+-    주어진 lag값과 actual 변수로 생성한 lag값 비교 
+-    dplyr::lag 이용 
+-    주어진 lag값과 실제 lag값 불일치 
+
+
 ```{r}
 temp1 %>% head()
 temp1 %>% tail()
@@ -97,6 +114,7 @@ lag1_1 <- temp1$actual %>%
 
 lag1 == lag1_1
 
+
 lag2 <- temp1$temp_2
 lag2_1 <- temp1$actual %>% 
   lag(n = 2) 
@@ -108,7 +126,7 @@ lag2 == lag2_1
 **recipes**
 
 -   recipe를 통해 결측치 처리, 필요 없는 칼럼 처리 등 데이터 전처리를 진행해줌
--   결측치 처리 방법은 본인이 편한 걸로 선택하면 됨(문제에서 이유를 쓰라고 하지 않았기 때문에)
+-   결측치 처리 방법은 본인이 편한 걸로 선택하면 됨(이전 기출 참고)
 -   누락된 데이터에서 year, month, day, week 변수가 생성되었기 때문에 삭제하고 다시 생성해줌
 -   year 변수의 경우 2016년도만 있기 때문에 제외
 
@@ -144,7 +162,15 @@ temp1 <- temp1 %>%
 ```
 
 
+**random split**
+```{r}
+splits <- initial_split(temp1, prop = 0.7)
 
+train <- training(splits)
+test <- testing(splits)
+```
+
+**time series split**
 ```{r}
 
 splits <- initial_time_split(temp1, prop = 0.7)
@@ -156,6 +182,8 @@ train %>% tail()
 test %>% head()
 
 ```
+
+
 
 ## Random forest로 검증 및 분석
 
@@ -205,6 +233,8 @@ print(RMSE(test$average, test$actual))
 ```
 
 ## time series split 안했을 때
+
+-   random split 했을 때가 모델 성능이 높음
 
 ```{r}
 splits <- initial_split(temp1, prop = 0.7)
@@ -274,6 +304,37 @@ print(RMSE(test$average, test$actual))
 -   두 모델 중 어떤 모델이 좋은지 고르고 이유 설명
 -   선택한 모델의 한계점 서술 및 해결할 방법 서술
 
+
+**SVM**
+
+![](images/svm.jpg)
+
+
+**Random forest**
+
+![](images/rand_forest.jpg)
+
+
+**multiple regression**
+
+![](images/multi_reg.jpg)
+
+
+**regression tree**
+
+![](images/reg_tree.jpg)
+
+
+**Neural network**
+
+![](images/neural_network.jpg)
+
+**참고**
+
+**R을 활용한 기계학습, 브레트 란츠**
+
+
+
 # 군집분석 {.tabset .tabset-fade}
 
 -   7주 동안의 전력 소비량 데이터(15분 간격으로 측정)
@@ -295,9 +356,7 @@ dat <- data.frame(date = rep(date, 50)) %>%
            month = month(date), 
            day = day(date)) %>% 
     select(VID, date, year, month, day, power)
-
-dat %>% is.na() %>% colSums()    
-
+    
 ```
 
 ## clustering
@@ -311,50 +370,45 @@ dat %>% is.na() %>% colSums()
 |          |      |                |         |
 
 ```{r}
-result <- dat %>% 
-    group_by(VID, year, month, day) %>% 
-    summarise(total = sum(power, na.rm = T)) %>% 
-    ungroup()
+pow <- scale(dat$power)
 
-tot <- result %>% 
-    select(total)
-
-tot <- scale(tot)
 
 set.seed(123)
-km.res <- kmeans(tot, 5, nstart = 25)
+km.res <- kmeans(pow, 5, nstart = 25)
 
-result <- result %>% 
-    bind_cols(km.res$cluster) %>% 
-    rename(cluster = ...6)
+dat <- dat %>% 
+    cbind(km.res$cluster) 
 
-result
+dat <- dat %>% 
+  rename(cluster = `km.res$cluster`)
+
+dat %>% head()
 
 ```
+
 
 ```{r}
 
-dat_p <- dat %>% 
-    select(power)
+mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
 
-dat_p <- scale(dat_p)
+result <- dat %>% 
+    group_by(VID, year, month, day) %>% 
+    summarise(total = sum(power, na.rm = T), clust = mode(cluster)) %>% 
+    ungroup()
 
-set.seed(123)
-km.res <- kmeans(dat_p, 5, nstart = 25)
-
-dat1 <- dat %>% 
-    bind_cols(km.res$cluster) %>% 
-    rename(cluster = ...7)
-
-dat1 %>% head()
+result %>% head()
 
 ```
+
 
 ## Heatmap으로 시각화하기
 
 |     |      |      |      |      |          |
 |-----|------|------|------|------|----------|
-|     | 1:15 | 1:30 | 1:45 | 2:00 | 2:15 ... |
+|     | 1:00 | 2:00 | 3:00 | 4:00 | 5:00 ... |
 | 월  |      |      |      |      |          |
 | 화  |      |      |      |      |          |
 | 수  |      |      |      |      |          |
@@ -363,22 +417,59 @@ dat1 %>% head()
 | 토  |      |      |      |      |          |
 | 일  |      |      |      |      |          |
 
-```{r}
 
-dat1 %>%
+**lubridate::wday**
+
+-    week_start = 1 : 월요일부터 시작으로 바꿔줌 
+-    설정안할 경우 일요일부터 시작 
+
+```{r}
+dat %>%
     filter(cluster == 4) %>%
     mutate(wday = wday(date, label = T), 
+           hour = hour(date)) %>% 
+    select(wday) %>% 
+    str()
+
+dat %>%
+    filter(cluster == 4) %>%
+    mutate(wday = wday(date, label = T, week_start = 1), 
+           hour = hour(date)) %>% 
+    select(wday) %>% 
+    str()
+```
+
+
+**scale_y_discrete**
+
+-   limits : factor 변수에 대해 원하는 순서 지정 
+-   factor로 변환하면 쉽게 순서를 바꿀 수 있음 
+
+```{r}
+
+dat %>%
+    filter(cluster == 4) %>%
+    mutate(wday = wday(date, label = T, week_start = 1), 
            hour = hour(date), 
-           minute = minute(date)) %>%
-    mutate(hour = as.character(hour),
-           minute = as.character(minute), 
-           ms = paste(hour, minute, sep = ":")) %>% 
-    group_by(wday, ms) %>% 
+           wday = as.factor(wday)) %>% 
+    group_by(wday, hour) %>% 
     summarise(mean_w = mean(power)) %>% 
     ungroup() %>% 
-    ggplot(aes(x = ms, y = wday, fill = mean_w)) + 
+    ggplot(aes(x = hour, y = wday, fill = mean_w)) + 
+    geom_tile()
+
+dat %>%
+    filter(cluster == 4) %>%
+    mutate(wday = wday(date, label = T, week_start = 1), 
+           hour = hour(date), 
+           wday = as.factor(wday)) %>% 
+    group_by(wday, hour) %>% 
+    summarise(mean_w = mean(power)) %>% 
+    ungroup() %>% 
+    ggplot(aes(x = hour, y = wday, fill = mean_w)) + 
     geom_tile() + 
-    scale_x_discrete(guide = guide_axis(n.dodge=7))
+    scale_y_discrete(limits = c("일", "토", "금", "목", "수", "화", "월"))
+
 
 ```
 
@@ -389,12 +480,8 @@ dat1 %>%
 ## R2/RMSE/정확도 계산
 
 -   정확도 : 실제값\>예측값인 경우 (1-예측값/실제값), 실제값\<예측값인 경우 (1-실제값/예측값) 결과를 평균내서 산출
-<<<<<<< HEAD
 
 
 
 
 
-
-=======
->>>>>>> e3e99d1dbfd2c35fabeb3779d55167da7ada5b8a
