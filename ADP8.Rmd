@@ -1,0 +1,89 @@
+---
+title: "ADP8"
+output:
+  html_document:
+    number_sections: true
+    fig_caption: true
+    toc: true
+    fig_width: 5
+    fig_height: 4
+    theme: cosmo
+    highlight: tango
+    code_folding: show
+---
+
+17회 복기 자료 
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE, 
+                      warning = FALSE,
+                      fig.align = "center")
+```
+
+
+```{r}
+library(tidyverse)
+library(data.table)
+library(lubridate)
+library(caret)
+library(recipes)
+library(rsample)
+library(forecast)
+```
+
+
+# house price prediction {.tabset .tabset-fade}
+
+-   데이터 : califonia housing 데이터와 유사 
+
+<https://www.kaggle.com/harlfoxem/housesalesprediction>
+
+## EDA
+
+## 데이터분할 
+
+## Modeling 
+
+-   교호작용을 고려한 다중회귀 수행 
+
+## 3가지 분류 모델 생성 및 비교, 좋은 모델 선택 
+
+-   RMAE 
+
+
+# covid19 {.tabset .tabset-fade}
+
+-    일별 누적확진자 변수로 있음 
+
+
+```{r}
+library(readr)
+
+file_path <- "https://www.sharpsightlabs.com/datasets/covid19/covid_data_2020-05-08.csv"
+covid_data <- read_delim(file_path,delim = ";") # 임의의 구분자로 된 파일을 읽을 때 사용 
+
+covid_data$country %>% table()
+```
+
+
+## 전체 인구대비 누적 사망률이 가장 높은 5개 국가 추출
+
+## 시각화 
+
+-    국가별 일일 확진자, 누적확진자, 일일사망자, 누적사망자 시계열 그래프 출력 
+
+## 위험지수 
+
+-    위험지수 개발, 이유 설명 
+-    위험지수가 높은 국가들 10개 선정해서 시각화 
+-    한국의 코로나 확진자를 예측(선형 시계열 모델 + 비선형시계열 모델)
+
+# 설문조사 데이터 {.tabset .tabset-fade}
+
+-    역문항 처리 
+-    그룹별 평균, 표준편차, 왜도, 첨도 산출 
+-    탐색적 요인분석 
+
