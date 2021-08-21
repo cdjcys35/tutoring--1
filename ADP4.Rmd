@@ -15,11 +15,8 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE,
                       message = FALSE, 
-<<<<<<< HEAD
                       warning = FALSE, 
-=======
                       warning = FALSE,
->>>>>>> 391225188a14fe4fcc1da9356acce2de5c8359c9
                       fig.align = "center")
 ```
 
@@ -817,6 +814,8 @@ xyz 회사의 광고 데이터
 <https://rpubs.com/AlgoritmaAcademy/som>
 
 
+
+**unsupervised learning**
 ```{r}
 # kohonen	3.0.10
 # devtools::install_version("kohonen", version = "3.0.10")
@@ -892,6 +891,8 @@ add.cluster.boundaries(ads.model, clust$cluster)
 ads.cluster <- data.frame(ads.s, cluster = clust$cluster[ads.model$unit.classif])
 tail(ads.cluster, 5)
 ```
+
+
 
 # Clustering and modeling tutorial {.tabset .tabset-fade}
 

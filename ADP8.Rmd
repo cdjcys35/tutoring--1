@@ -12,9 +12,7 @@ output:
     code_folding: show
 ---
 
-17회 복기 자료 
-
-
+17회 복기 자료
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE,
@@ -22,7 +20,6 @@ knitr::opts_chunk$set(echo = TRUE,
                       warning = FALSE,
                       fig.align = "center")
 ```
-
 
 ```{r}
 library(tidyverse)
@@ -32,58 +29,393 @@ library(caret)
 library(recipes)
 library(rsample)
 library(forecast)
+library(GGally)
 ```
-
 
 # house price prediction {.tabset .tabset-fade}
 
--   데이터 : califonia housing 데이터와 유사 
+-   데이터 : califonia housing 데이터와 유사
 
 <https://www.kaggle.com/harlfoxem/housesalesprediction>
 
+```{r}
+house <- fread("data/kc_house_data.csv")
+house %>% names()
+
+house <- house %>% select(-c(id, date, zipcode, sqft_living15, sqft_lot15, sqft_basement))
+```
+
+## Description
+
+| 변수          | 변수설명                                |
+|---------------|-----------------------------------------|
+| price         | 주택 판매가격                           |
+| lat           | 위도                                    |
+| long          | 경도                                    |
+| bedrooms      | 침실의 개수                             |
+| bathrooms     | 욕실의 개수(0.5: 화장실 포함, 샤워실 x) |
+| sqft_living   | 주택 평 수                              |
+| sqft_lot      | 땅 크기                                 |
+| floors        | 주택 층 수                              |
+| waterfront    | 해안가가 보이는지 여부                  |
+| view          | 건물 전망 등급 0\~4                     |
+| condition     | 건물의 전반적인 조건 1\~5               |
+| grade         | 건물의 건축자재 및 디자인 우수성 등급   |
+| yr_renovated  | 건물의 리모델링 연도                    |
+| yr_built      | 건물이 지어진 최초 연도                 |
+
+
 ## EDA
 
-## 데이터분할 
+```{r}
+house %>% glimpse()
+house %>% summary()
+house %>% is.na() %>% colSums()
+```
 
-## Modeling 
+```{r}
+house <- house %>% 
+  mutate( 
+         waterfront = as.factor(waterfront), 
+         view = as.factor(view), 
+         condition = as.factor(condition), 
+         age=2018-yr_built
+         ) %>% 
+  select(-yr_built)
+```
 
--   교호작용을 고려한 다중회귀 수행 
+```{r}
 
-## 3가지 분류 모델 생성 및 비교, 좋은 모델 선택 
+house$price %>% summary()
 
--   RMAE 
+house %>% 
+  ggplot(aes(x = lat, y = long, color = price)) + 
+  geom_point()
+
+house %>% 
+  mutate(price = case_when(price <= 250000 ~ 1, 
+                           price <=500000 ~ 2, 
+                           price <= 750000 ~ 3, 
+                           TRUE ~ 4), 
+         price = as.factor(price)) %>% 
+  ggplot(aes(x = lat, y = long, color = price)) + 
+  geom_point()
+
+
+house <- house %>% 
+  mutate(lat_ind = ifelse(lat>=47.5,0,1), 
+         lat_ind = as.factor(lat_ind))
+```
+
+```{r}
+house %>% 
+  select_if(is.numeric) %>% 
+  ggpairs(columns = 1:7)
+
+
+house %>% 
+  select_if(is.numeric) %>% 
+  ggpairs(columns = c(1, 8:12))
+
+
+house %>% 
+  select_if(is.numeric) %>%
+  cor() %>% 
+  corrplot::corrplot(method = "number")
+
+
+```
+
+## 데이터분할
+
+-    valid를 왜 나눠야하는지 모르겠음
+
+```{r}
+library(rsample)
+
+idx <- initial_split(house, prop = 0.7, strata = price)
+train <- training(idx)
+test <- testing(idx)
+```
+
+
+## train/valid/test 시각화 제시 
+
+-    valid set 제외하고 train/test 결과만 시각화함 
+
+```{r}
+ggplot() + 
+  geom_density(data = train, aes(x = price),fill = "red", alpha = 0.2) + 
+  geom_density(data = test, aes(x = price), fill = "blue",alpha = 0.2) 
+  
+```
+
+
+## Modeling
+
+-   sqft_living, sqft_above 변수 간에 상관관계가 높기 때문에 교호작용항을 추가함 
+
+**교호작용을 고려한 다중회귀 수행**
+```{r}
+train %>% glimpse()
+fit <- lm(price ~ . + sqft_living*sqft_above, data = train)
+summary(fit)
+```
+
+
+**변수선택**
+
+-    cp, adj-rsquare, bic 기준으로 **price ~ bathrooms + waterfront+ view + grade + sqft_above + age + lat_ind + sqft_living * sqft_above 모델 선택** 
+
+```{r}
+library(leaps)
+
+fit_leaps <- regsubsets(price ~ . + sqft_living * sqft_above, data = train)
+
+plot(fit_leaps) # bic 기준
+plot(fit_leaps, scale = "adjr2")
+plot(fit_leaps, scale = "Cp")
+
+fit1 <- lm(price ~ bathrooms + waterfront+ view + grade + sqft_above + age + lat_ind + sqft_living * sqft_above, train)
+```
+
+
+-   aic, bic 기준으로 보면 price ~ bedrooms + bathrooms + sqft_living + waterfront + 
+    view + condition + grade + sqft_above + yr_renovated + lat + 
+    long + age + lat_ind + sqft_living:sqft_above 선택 
+```{r}
+library(MASS)
+stepAIC(fit, trace=F)
+stepAIC(fit, k=log(nrow(train)), trace = F) 
+
+fit2=lm(formula = price ~ bedrooms + bathrooms + sqft_living + waterfront + 
+    view + condition + grade + sqft_above + yr_renovated + lat + 
+    long + age + lat_ind + sqft_living:sqft_above, data = train)
+
+```
+
+
+
+-   모수 간결성의 원칙에 따라 fit1 선택 
+```{r}
+
+AIC(fit1, fit2)
+BIC(fit1, fit2)
+
+summary(fit1)
+summary(fit2)
+```
+
+**등분산성 가정**  
+```{r}
+plot(fit1, which = 1)
+plot(fit1, which = 3)
+car::ncvTest(fit1)
+```
+
+**정규성 가정**
+```{r}
+plot(fit1, which = 2)
+#shapiro.test(residuals(fit1)) # error : sample size must be between 3 and 5000
+# nortest	1.0-4
+library(nortest)
+ad.test(residuals(fit1))
+```
+
+**독립성 가정**
+```{r}
+car::durbinWatsonTest(fit1)
+checkresiduals(fit1)
+
+```
+
+**선형성 가정**
+
+```{r}
+# car::crPlots(fit1) : interaction term 있을 때는 적용 x 
+car::residualPlots(fit1)
+```
+
+**다중공선성**
+
+```{r}
+car::vif(fit1)
+
+```
+
+
+**log 변환**
+
+-   실제 시험 때는 데이터가 적어서 회귀모형에 잘 적합할 수 있도록 나올 것으로 예상 
+-   현재 데이터는 관측치가 너무 많아서 가정을 엄격하게 확인하기 불가능.. 
+-   절차만 참고 
+
+```{r}
+fit1_log <- lm(formula = log(price) ~ bathrooms + waterfront + view + grade + 
+    sqft_above + age + lat_ind + sqft_living * sqft_above, data = train)
+
+plot(fit1_log, which = 1)
+plot(fit1_log, which = 2)
+plot(fit1_log, which = 3)
+plot(fit1_log, which = 4)
+
+car::qqPlot(fit1_log)
+car::ncvTest(fit1_log)
+ad.test(residuals(fit1_log))
+
+
+pred <- predict(fit1_log, newdata = test)
+
+forecast::accuracy(pred, test$price)
+
+caret::R2(pred, test$price)
+
+```
+
+
+
+
+
+## 기계학습 모형 3가지 MSE, MAPE, R2 비교 
+
+-    자료의 크기에 영향을 받는 측도 : MAE, MSE, R2
+-    자료의 크기에 영향을 받지 않는 측도 : MAPE 
+-    이 데이터에서는 MAPE가 적절 
+
+-    MAPE는 관측값이 0을 갖는 경우 사용 X, 발산 
+
+```{r}
+rf_gridsearch <- train(price ~ .,             
+                       data = train,               
+                       method = 'rf') 
+
+pred <- predict(rf_gridsearch, newdata = test)
+print(RMSE(pred, test$price))
+
+
+xgb_gridsearch <- train(price ~ .,             
+                       data = train,               
+                       method = 'xgbTree') 
+
+pred <- predict(xgb_gridsearch, newdata = test)
+print(RMSE(pred, test$price))
+
+
+lasso_gridsearch <- train(medv ~ .,             
+                       data = train,               
+                       method = 'glmnet')
+lasso_gridsearch
+pred <- predict(lasso_gridsearch, newdata = test)
+print(RMSE(pred, test$price))
+print(R2(pred, test$price))
+forecast::accuracy(pred, test$price) # mape 나옴 
+
+```
+
 
 
 # covid19 {.tabset .tabset-fade}
-
--    일별 누적확진자 변수로 있음 
-
 
 ```{r}
 library(readr)
 
 file_path <- "https://www.sharpsightlabs.com/datasets/covid19/covid_data_2020-05-08.csv"
 covid_data <- read_delim(file_path,delim = ";") # 임의의 구분자로 된 파일을 읽을 때 사용 
-
-covid_data$country %>% table()
+covid_data %>% summary()
 ```
-
 
 ## 전체 인구대비 누적 사망률이 가장 높은 5개 국가 추출
 
-## 시각화 
+```{r}
+covid_data %>% glimpse()
+covid_data %>% 
+  group_by(country) %>% 
+  summarise(sum = sum(dead)) %>% # 데이터에 전체 인구 x
+  arrange(-sum) %>% 
+  top_n(5)
+```
 
--    국가별 일일 확진자, 누적확진자, 일일사망자, 누적사망자 시계열 그래프 출력 
+## 시각화
 
-## 위험지수 
+-   국가별 일일 확진자, 누적확진자, 일일사망자, 누적사망자 시계열 그래프 출력
 
--    위험지수 개발, 이유 설명 
--    위험지수가 높은 국가들 10개 선정해서 시각화 
--    한국의 코로나 확진자를 예측(선형 시계열 모델 + 비선형시계열 모델)
+```{r}
+covid_data %>% 
+  filter(country%in%c("US", "Italy", "Spain", "France", "United Kingdom")) %>%
+  mutate(dead_cum = cumsum(dead), 
+         confirmed_cum = cumsum(confirmed)) %>%
+  ggplot() + 
+  geom_line(aes(x = date, y = confirmed, color = "confirmed")) + 
+  geom_line(aes(x = date, y = confirmed_cum, color = "confirmed_cum")) + 
+  geom_line(aes(x = date, y = dead, color = "dead")) +
+  geom_line(aes(x = date, y = dead_cum, color = "dead_cum")) + 
+  facet_wrap(~country)
+  
 
-# 설문조사 데이터 {.tabset .tabset-fade}
+covid_data %>% 
+  filter(country%in%c("US", "Italy", "Spain", "France", "United Kingdom")) %>%
+  mutate(dead_cum = cumsum(dead), 
+         confirmed_cum = cumsum(confirmed)) %>%
+  pivot_longer(cols = c("confirmed", "confirmed_cum", "dead", "dead_cum"), names_to = "feature", values_to = "index") %>% 
+  ggplot(aes(x = date, y = index, group = feature, color = feature)) + 
+  geom_line() + 
+  facet_wrap(~country)
 
--    역문항 처리 
--    그룹별 평균, 표준편차, 왜도, 첨도 산출 
--    탐색적 요인분석 
+```
 
+
+## 위험지수
+
+-   위험지수 개발, 이유 설명
+-   위험지수가 높은 국가들 10개 선정해서 시각화
+-   한국의 코로나 확진자를 예측(선형 시계열 모델 + 비선형시계열 모델)
+
+```{r}
+
+covid_data %>%
+  mutate(dead_cum = cumsum(dead), 
+         confirmed_cum = cumsum(confirmed)) %>%
+  filter(date == max(date)) %>% 
+  mutate(index = dead_cum/confirmed_cum) %>% 
+  arrange(-index) %>% 
+  top_n(10) %>% 
+  #mutate(country = fct_reorder(country, desc(country))) %>% 
+  ggplot(aes(x = country, y = index)) + 
+  geom_bar(stat = "identity") + 
+  coord_flip()
+
+covid_data %>%
+  mutate(dead_cum = cumsum(dead), 
+         confirmed_cum = cumsum(confirmed)) %>%
+  filter(date == max(date)) %>% 
+  mutate(index = dead_cum/confirmed_cum) %>% 
+  arrange(-index) %>% 
+  top_n(10) %>% 
+  mutate(country = fct_reorder(country, desc(country))) %>% 
+  ggplot(aes(x = country, y = index)) + 
+  geom_bar(stat = "identity") + 
+  coord_flip()
+
+```
+
+```{r}
+
+korea <- covid_data %>% 
+  filter(country == "Korea, South")
+korea %>% head()
+korea %>% tail()
+
+
+covid_ts <- ts(korea$confirmed, frequency = 365)
+summary(forecast(auto.arima(covid_ts, seasonal = F)))
+
+
+window(korea$confirmed) %>% 
+  splinef(lambda = 0) %>% 
+  autoplot()
+
+window(korea$confirmed) %>% 
+  splinef() %>% 
+  checkresiduals()
+
+```
