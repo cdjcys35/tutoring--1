@@ -260,7 +260,7 @@ control <- trainControl(method='cv',
                         summaryFunction = multiClassSummary, # auc, sensitivity, specificity
                         savePredictions = T
                         )
-tunegrid <- expand.grid(mtry = c(1:5))
+tunegrid <- expand.grid(mtry = c(1:2))
 
 library(tictoc)
 tic()
@@ -300,11 +300,16 @@ mlp_rep <- house %>%
   step_dummy(all_nominal(), -all_outcomes(), one_hot = T) %>% 
   step_normalize(all_numeric_predictors())
 mlp_rec <- mlp_rep %>% prep() %>% juice()
+```
 
+```{r}
 
 mlp_rec$price_range <- factor(mlp_rec$price_range, labels = make.names(levels(mlp_rec$price_range)))
 
+mlp_rec$price_range %>% head()
+```
 
+```{r}
 idx <- initial_split(mlp_rec, prop = 0.7, strata = price_range)
 
 train <- training(idx)
@@ -317,7 +322,9 @@ control <- trainControl(method='cv',
                         summaryFunction = multiClassSummary, # auc, sensitivity, specificity
                         savePredictions = T
                         )
+```
 
+```{r, eval = F}
 # RSNNS	0.4-12 
 # nnet	7.3-14
 
@@ -346,7 +353,7 @@ mlp_gridsearch3 <- train(price_range ~ .,
                        data = train,               
                        method = 'mlp',  
                        trControl = control,
-                       tuneLength = 20,
+                       tuneLength = 10, # 20 정도 해야지 성능 나옴 
                        metric = "logLoss", 
                        verbose = F) 
 toc() 
@@ -362,7 +369,7 @@ cmatrix
 
 ```
 
-```{r}
+```{r, eval = FALSE}
 
 library(tictoc)
 tic()
@@ -370,7 +377,7 @@ xgb_gridsearch <- train(price_range ~ .,
                        data = train,               
                        method = 'xgbTree',  
                        trControl = control,
-                       tuneLength = 3,
+                       tuneLength = 1,
                        metric = "logLoss") 
 toc() 
 
@@ -382,14 +389,14 @@ cmatrix
 
 **F1 score**
 
-```{r}
+```{r, eval=FALSE}
 cmatrix$byClass
 
 ```
 
 **ROC curve**
 
-```{r}
+```{r, eval = FALSE}
 library(pROC)
 pred_prob <- predict(xgb_gridsearch, newdata = test, type = "prob")
 actual <- as.numeric(factor(test$price_range))-1
