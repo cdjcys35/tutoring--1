@@ -284,7 +284,7 @@ caret::R2(pred, test$price)
 
 -    MAPE는 관측값이 0을 갖는 경우 사용 X, 발산 
 
-```{r}
+```{r, eval = FALSE}
 rf_gridsearch <- train(price ~ .,             
                        data = train,               
                        method = 'rf') 
