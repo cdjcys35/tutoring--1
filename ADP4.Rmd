@@ -14,6 +14,9 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE, 
+                      warning = FALSE, 
+                      warning = FALSE,
                       fig.align = "center")
 ```
 
@@ -39,6 +42,7 @@ theme_set(theme_bw())
 -   two-way ANOVA
 
 **통계 검정 문제는 따로 안나오는걸로 파악했음**
+
 
 # 범주형 자료분석 {.tabset .tabset-fade}
 
@@ -617,32 +621,47 @@ car::outlierTest(anova_result)
 -   SOM 같이 모르는 모델 나오면 못쓸 수도 있으므로 여러가지 모델을 정리해가는 것이 필요함 
 -   factorextra 패키지가 시각화 및 기타 분석에 매우 유용함 
 
-<<<<<<< HEAD
-
-
-
-# Clustering
-=======
 ```{r}
 # factoextra	1.0.7
 #devtools::install_version("factoextra", version = "1.0.7")
 library(factoextra)
+library(NbClust)
 ```
->>>>>>> 105625b6ece5919d09aa710164c008121ec30954
 
 ## k means
 
 -    k-means는 거리 기반이므로 scaling 필수 
 ```{r}
 df_6 <- scale(USArrests) # scale(x, center = TRUE, scale = TRUE)
+df_6 %>% head()
 ```
 
 **optimal cluster k**
 
 -    factoextra 패키지를 이용하면 최적의 cluster 개수를 시각화해줌 
--    method는 여러 가지가 있음 
+-    method는 여러 가지가 있음
+-    c("silhouette", "wss", "gap_stat")
+-    optimal number of clusters 참고 or 주관적으로 결정함 
+-    optimal number of clusters도 nstart, nboot 설정에 따라 유동적임 
+
+<https://afit-r.github.io/kmeans_clustering>
 ```{r}
+set.seed(123)
 fviz_nbclust(df_6, kmeans, method = "gap_stat")
+
+
+# nboot	: integer, number of Monte Carlo ("bootstrap") samples. Used only for determining the number of clusters using gap statistic. recommend value = 500
+
+
+set.seed(123)
+fviz_nbclust(df_6, kmeans, method = "gap_stat", nstart = 25, nboot = 50)
+
+fviz_nbclust(df_6, kmeans, method = "wss") +
+    geom_vline(xintercept = 4, linetype = 2)+
+  labs(subtitle = "Elbow method")
+
+set.seed(123)
+fviz_nbclust(df_6, kmeans, method = "silhouette")
 
 ```
 
@@ -669,6 +688,7 @@ fviz_cluster(km.res, data = df_6,
 **optimal cluster k**
 
 ```{r}
+set.seed(123)
 fviz_nbclust(df_6, hkmeans, method = "gap_stat")
 
 ```
@@ -676,7 +696,8 @@ fviz_nbclust(df_6, hkmeans, method = "gap_stat")
 **Compute hk-means**
 
 ```{r}
-res.hk <- hkmeans(df_6, 4)
+set.seed(123)
+res.hk <- hkmeans(df_6, 3)
 ```
 
 **Visualization**
@@ -686,11 +707,8 @@ fviz_dend(res.hk, rect = T) # rect = T : 정사각형 점선 추가
 
 ```
 
-<<<<<<< HEAD
 
-## clustering 이후 classification 
 
-=======
 ```{r}
 fviz_cluster(res.hk, repel = TRUE) # repel = T : label 중첩 방지 
 ```
@@ -699,7 +717,7 @@ fviz_cluster(res.hk, repel = TRUE) # repel = T : label 중첩 방지
 
 -   factorextra 패키지가 가장 효율적
 -   recipe를 이용할 수도 있지만 시각화 코드가 긴 단점이 있음
--   시각화까지 전부 해야되면 factorextra, 전처리만 해도 되면 recipes 쓰면 됨
+-   시각화까지 전부 해야되면 **factorextra**, 전처리만 해도 되면 **recipes** 쓰면 됨
 
 
 **Example**
@@ -708,7 +726,11 @@ df_5 <- decathlon2[1:23, 1:10]
 df_5
 ```
 
--    그냥 prcomp 써도 상관없음 
+-    그냥 prcomp 써도 상관없음
+-    FactoMineR 패키지의 PCA는 scaling이 default임 
+-    graph = T로 설정했을 때 시각화까지 수행해줌 
+
+
 ```{r}
 library(FactoMineR)
 PCA(df_5, graph = T) # scale.unit = T default
@@ -733,8 +755,8 @@ fviz_pca_var(res.pca)
 ```
 
 -   주성분 별로 계수의 효과를 파악하기 어렵기 때문에 plot을 그려서 확인 
--   화살표가 찍히는 좌표는 각 주성분에서 특정 변수의 가중치 값이 됨 
--   예를 들어 Pole.vault의 경우 PC1의 가중치는 -0.21, PC2의 가중치는 0.8이므로 해당 좌표에 점이 찍힘 
+-   화살표가 찍히는 꼭지점의 좌표는 각 주성분에서 특정 변수의 가중치 값이 됨 
+-   예를 들어 Pole.vault의 경우 PC1의 가중치는 -0.21, PC2의 가중치는 0.8이므로 해당 좌표(-0.21, 0.8)에 점이 찍힘 
 -   즉 주성분 축에 평행할수록 해당 변수는 주성분에 크게 기여했다고 볼 수 있음 
 -   같은 각도로 뻗어나가는 경우 서로 비슷한 변수라고 볼 수 있음 
 
@@ -755,11 +777,13 @@ fviz_pca_biplot(res.pca, repel = TRUE)
 ## hierarchical clustering
 
 ```{r}
+set.seed(123)
 fviz_nbclust(df_6, hcut, method = "gap_stat")
 ```
 
 ```{r}
-res <- hcut(USArrests, k = 4, stand = T)
+set.seed(123)
+res <- hcut(USArrests, k = 3, stand = T)
 res
 ```
 
@@ -769,17 +793,11 @@ fviz_dend(res, rect = TRUE)
 
 ## SOM
 
-<https://rpubs.com/AlgoritmaAcademy/som>
 
-```{r}
-# kohonen	3.0.10
-# devtools::install_version("kohonen", version = "3.0.10")
-library(kohonen)
+**Data description**
 
-dat_7 <- fread("data/KAG.csv")
+xyz 회사의 광고 데이터 
 
-dat_7 %>% glimpse()
-```
 -   ad_id : an unique ID of each ad
 -   xyz_campaign_id : an ID associated with each ad campaign of XYZ company
 -   fb_campaign_id : an ID associated with how Facebook tracks each campaign
@@ -791,6 +809,22 @@ dat_7 %>% glimpse()
 -   Spent : amount paid from xyz company to Facebook to shown the ad
 -   Total_Conversion : total number of people who enquired about the product after seeing the ad
 -   approved_Conversion : total number of people who bougth the product after seeing the ad
+
+
+<https://rpubs.com/AlgoritmaAcademy/som>
+
+
+
+**unsupervised learning**
+```{r}
+# kohonen	3.0.10
+# devtools::install_version("kohonen", version = "3.0.10")
+library(kohonen)
+
+dat_7 <- fread("data/KAG.csv")
+
+dat_7 %>% glimpse()
+```
 
 ```{r}
 dat_7 <- dat_7 %>% 
@@ -816,6 +850,7 @@ ads.s <- dat_7 %>%
 
 ```{r}
 ads.train <- as.matrix(scale(ads.s[,-1]))
+ads.train %>% head()
 ```
 
 ```{r}
@@ -857,7 +892,93 @@ ads.cluster <- data.frame(ads.s, cluster = clust$cluster[ads.model$unit.classif]
 tail(ads.cluster, 5)
 ```
 
+
+
 # Clustering and modeling tutorial {.tabset .tabset-fade}
+
+## 수치형 변수만 선택
+```{r}
+
+df_k <- ads.s %>% 
+  select(interest, Impressions, Clicks, Spent, Total_Conversion) 
+
+df_k <- scale(df_k)  
+```
+
+## optimal cluster
+```{r}
+set.seed(123)
+fviz_nbclust(df_k, kmeans, method = "wss") 
+```
+
+## kmeans
+```{r}
+set.seed(123)
+km.res <- kmeans(df_k, 4, nstart = 25)
+km.res$cluster %>% head()
+
+clust = data.frame(clust = km.res$cluster)
+
+df_k %>% dim()
+clust %>% dim()
+
+```
+
+## 데이터 병합
+
+-    bind_cols는 error가 날 수도 있으므로 cbind 사용 추천
+
+```{r}
+df_k <- cbind(df_k, clust)
+
+newdat <- ads.s %>% 
+  select(-c(interest, Impressions, Clicks, Spent, Total_Conversion)) %>% 
+  cbind(df_k)
+
+newdat %>% head()
+
+```
+
+
+## Modeling
+```{r}
+library(caret)
+library(rsample)
+
+newdat$xyz_campaign_id <- factor(newdat$xyz_campaign_id, labels = c("A", "B", "C"))
+
+splits <- initial_split(newdat, prop = 0.7, strata = xyz_campaign_id)
+train <- training(splits)
+test <- testing(splits)
+
+set.seed(123)
+control <- trainControl(method='cv', 
+                        number=5, 
+                        classProbs = T,   
+                        summaryFunction = multiClassSummary, 
+                        savePredictions = T
+                        )
+tunegrid <- expand.grid(mtry = c(1:5))
+
+rf_gridsearch <- train(xyz_campaign_id ~ .,             
+                       data = train,               
+                       method = 'rf',  
+                       trControl = control,
+                       tuneGrid = tunegrid,
+                       metric = "logLoss") 
+
+rf_gridsearch
+
+pred <- predict(rf_gridsearch, newdata = test, type = "raw")
+
+cmatrix <- caret::confusionMatrix(pred, test$xyz_campaign_id) 
+cmatrix
+
+```
+
+
+
+# PCA and modeling tutorial {.tabset .tabset-fade}
 
 <https://www.kaggle.com/uciml/breast-cancer-wisconsin-data>
 
@@ -873,11 +994,12 @@ cancer <- cancer %>%
   janitor::clean_names()
 
 cancer %>% glimpse()
-
-
 ```
 
 ## EDA
+
+-    변수 간 상관관계가 뚜렷함 
+
 
 ```{r}
 library(corrplot)
@@ -888,7 +1010,10 @@ cancer %>%
   corrplot()
 
 ```
+## 데이터 전처리 
 
+-    결측치 확인 
+-    범주형 변수에 label 부여
 ```{r}
 cancer$diagnosis <- factor(cancer$diagnosis, label = c("Benign", "Malignant"))
 cancer %>% is.na() %>% colSums()
@@ -951,7 +1076,7 @@ df_8
 -   step_pca()
 
     -   threshold : 주성분을 총 변동의 몇 %를 설명할 정도로 선택할 것인지
-    -   위의 예시를 보면 PC4 : 0.79, PC5 : 0.84인데 treshold를 0.80으로 잡으면 PC5까지 선택됨
+    -   위의 예시를 보면 주성분별 Cumulative Proportion이 PC4 : 0.79, PC5 : 0.84인데 treshold를 0.80으로 잡으면 PC5까지 선택됨(미만이면 초과해서 주성분이 선택됨. 주의 필요)
 
 ```{r}
 library(recipes)
@@ -961,8 +1086,10 @@ cancer %>%
   step_normalize(all_predictors()) %>% 
   step_pca(all_numeric(), threshold = 0.80) %>% 
   prep() %>% 
-  juice()
+  juice() %>% 
+  head()
 
+df_8 %>% head() # prcomp로 적용한 결과 
 ```
 
 ```{r}
@@ -1003,3 +1130,11 @@ cmatrix <- caret::confusionMatrix(pred, test$diagnosis)
 cmatrix
 
 ```
+
+
+
+
+
+
+
+
